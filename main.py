@@ -2,6 +2,8 @@ import pygame
 import sys
 import random
 import math
+import json
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -16,6 +18,7 @@ OBSTACLE_GAP = SCREEN_HEIGHT * 0.2
 OBSTACLE_SPEED = -4
 ANIMATION_TIME = 10
 BUTTON_SIZE = (360, 258)  # 3x the original size
+NUMBER_SIZE = (80, 108)  # Size of each number image
 
 class BackgroundManager:
     def __init__(self):
@@ -131,7 +134,7 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.running = True
-        self.inStartMenu = True  # To control when to show the start menu
+        self.inStartMenu = True
         self.player = Player()
         self.obstacleMngr = ObstacleManager()
         self.bgMngr = BackgroundManager()
@@ -140,8 +143,14 @@ class Game:
         self.loadButtons()
         self.startButtonAnimPhase = 0
         self.retryButtonAnimPhase = 0
-        self.showGameOverScreen = False  # New attribute to control the game over screen
+        self.showGameOverScreen = False
+        self.numberImgs = self.loadNumberImages()
+        self.scoreRecordsPath = 'Extras/scoreRecords.json'
+        self.bestScore = self.getBestScore()
 
+    def loadNumberImages(self):
+        numberPaths = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+        return [pygame.transform.scale(pygame.image.load(f'Assets/Numbers/{name}.png').convert_alpha(), NUMBER_SIZE) for name in numberPaths]
 
     def loadButtons(self):
         self.startButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/startButton.png').convert_alpha(), BUTTON_SIZE)
@@ -150,6 +159,85 @@ class Game:
         self.startButtonRect = self.startButtonImg.get_rect(center=(SCREEN_WIDTH/2 - BUTTON_SIZE[0]/2 - 25, SCREEN_HEIGHT/2))
         self.settingsButtonRect = self.settingsButtonImg.get_rect(center=(SCREEN_WIDTH/2 + BUTTON_SIZE[0]/2 + 25, SCREEN_HEIGHT/2))
         self.retryButtonRect = self.retryButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+
+    def updateScoreRecord(self, currentScore):
+        try:
+            if not os.path.exists('Extras'):
+                os.makedirs('Extras')
+            if os.path.exists(self.scoreRecordsPath):
+                with open(self.scoreRecordsPath, 'r') as file:
+                    scores = json.load(file)
+            else:
+                scores = []
+            scores.append(currentScore)
+            with open(self.scoreRecordsPath, 'w') as file:
+                json.dump(scores, file)
+        except Exception as e:
+            print(f"Error updating score record: {e}")
+
+    def getBestScore(self):
+        try:
+            if os.path.exists(self.scoreRecordsPath):
+                with open(self.scoreRecordsPath, 'r') as file:
+                    scores = json.load(file)
+                return max(scores)
+            return 0
+        except Exception as e:
+            print(f"Error reading best score: {e}")
+            return 0
+
+    def drawAnimatedScore(self, score, yPosition, animationPhase):
+        scoreStr = str(score)
+        totalWidth = NUMBER_SIZE[0] * len(scoreStr)
+        startX = SCREEN_WIDTH / 2 - totalWidth / 2
+        scaleFactor = 1.05 + 0.05 * math.sin(animationPhase)
+        for i, digit in enumerate(scoreStr):
+            animSize = (int(NUMBER_SIZE[0] * scaleFactor), int(NUMBER_SIZE[1] * scaleFactor))
+            animImg = pygame.transform.scale(self.numberImgs[int(digit)], animSize)
+            animRect = animImg.get_rect(center=(startX + i * NUMBER_SIZE[0] + NUMBER_SIZE[0] // 2, yPosition))
+            self.screen.blit(animImg, animRect)
+
+    def runGameOverScreen(self):
+        self.screen.fill(BLACK)
+        mx, my = pygame.mouse.get_pos()
+
+        s = pygame.Surface((800, 600), pygame.SRCALPHA)  # Semi-transparent overlay
+        s.fill((0, 0, 0, 180))
+        self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 300))
+
+        if self.retryButtonRect.collidepoint((mx, my)):
+            self.screen.blit(self.retryButtonImg, self.retryButtonRect)
+        else:
+            scaleFactor = 1.15 + 0.10 * math.sin(self.retryButtonAnimPhase)
+            animButton = pygame.transform.scale(self.retryButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
+            animRect = animButton.get_rect(center=self.retryButtonRect.center)
+            self.screen.blit(animButton, animRect)
+            self.retryButtonAnimPhase += 0.015
+
+        self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 100, self.retryButtonAnimPhase - 1)
+
+        bestScoreStr = f"Best Score: {self.bestScore}"
+        bestScoreText = self.font.render(bestScoreStr, True, WHITE)
+        self.screen.blit(bestScoreText, (SCREEN_WIDTH / 2 - bestScoreText.get_width() / 2, SCREEN_HEIGHT / 2 + 100))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                self.showGameOverScreen = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.retryButtonRect.collidepoint((mx, my)):
+                    self.updateScoreRecord(self.score)
+                    self.bestScore = self.getBestScore()
+                    self.restartGame()
+
+        pygame.display.flip()
+
+    def restartGame(self):
+        self.player = Player()
+        self.obstacleMngr = ObstacleManager()
+        self.score = 0
+        self.showGameOverScreen = False
+        self.inStartMenu = False
 
     def runStartMenu(self):
         self.screen.fill(BLACK)
@@ -178,42 +266,12 @@ class Game:
                 
         pygame.display.flip()
 
-    def runGameOverScreen(self):
-        self.screen.fill(BLACK)
-        mx, my = pygame.mouse.get_pos()
-
-        # Draw semi-transparent rectangle
-        s = pygame.Surface((800, 400), pygame.SRCALPHA)  # Size of the rectangle
-        s.fill((0, 0, 0, 180))  # Black rectangle with transparency
-        self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 200))
-
-        # Retry Button Animation
-        if self.retryButtonRect.collidepoint((mx, my)):
-            self.screen.blit(self.retryButtonImg, self.retryButtonRect)
-        else:
-            scaleFactor = 1.15 + 0.10 * math.sin(self.retryButtonAnimPhase)
-            animButton = pygame.transform.scale(self.retryButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
-            animRect = animButton.get_rect(center=self.retryButtonRect.center)
-            self.screen.blit(animButton, animRect)
-            self.retryButtonAnimPhase += 0.015
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-                self.showGameOverScreen = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if self.retryButtonRect.collidepoint((mx, my)):
-                    self.restartGame()
-
-        pygame.display.flip()
-
-    def restartGame(self):
-           # Reset game state for a new game
-           self.player = Player()
-           self.obstacleMngr = ObstacleManager()
-           self.score = 0
-           self.showGameOverScreen = False
-           self.inStartMenu = False  # Or set this to False to restart immediately
+    def drawScore(self):
+        scoreStr = str(self.score)
+        totalWidth = NUMBER_SIZE[0] * len(scoreStr)  # Total width to display all digits side by side
+        startX = SCREEN_WIDTH / 2 - totalWidth / 2  # Starting X position for the first digit
+        for i, digit in enumerate(scoreStr):
+            self.screen.blit(self.numberImgs[int(digit)], (startX + i * NUMBER_SIZE[0], 10))
 
     def run(self):
         while self.running:
@@ -238,13 +296,12 @@ class Game:
                 self.bgMngr.draw(self.screen)
                 self.player.draw(self.screen)
                 self.obstacleMngr.draw(self.screen)
-                scoreTxt = self.font.render(f"Score: {self.score}", True, WHITE)
-                self.screen.blit(scoreTxt, (10, 10))
+                self.drawScore()  # Replace the old score drawing method
 
                 pygame.display.flip()
 
                 if self.obstacleMngr.checkCollision(self.player.spriteRect):
-                    self.showGameOverScreen = True  # Show game over screen instead of quitting
+                    self.showGameOverScreen = True
 
                 self.clock.tick(60)
 
