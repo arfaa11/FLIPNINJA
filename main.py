@@ -5,167 +5,168 @@ import random
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions
+# Constants
 SCREEN_WIDTH, SCREEN_HEIGHT = 1920, 1080
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+BLACK, WHITE, RED = (0, 0, 0), (255, 255, 255), (255, 0, 0)
+SPRITE_SCALE = 0.06
+MAX_VEL = 5
+OBSTACLE_WIDTH = int(SCREEN_WIDTH * 0.05)
+OBSTACLE_GAP = SCREEN_HEIGHT * 0.2
+OBSTACLE_SPEED = -4
+ANIMATION_TIME = 10
 
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
+class BackgroundManager:
+    def __init__(self):
+        self.bgImgs = {
+            'sky': pygame.image.load('Assets/Background/sky.png').convert_alpha(),
+            'cloudsBack': pygame.image.load('Assets/Background/cloudsBack.png').convert_alpha(),
+            'cloudsFront': pygame.image.load('Assets/Background/cloudsFront.png').convert_alpha(),
+            'ground': pygame.image.load('Assets/Background/ground.png').convert_alpha()
+        }
+        self.bgXPos = {
+            'cloudsBack': [0, SCREEN_WIDTH],
+            'cloudsFront': [0, SCREEN_WIDTH],
+            'ground': [0, SCREEN_WIDTH]
+        }
+        self.bgSpeeds = {
+            'cloudsBack': -1 * SCREEN_WIDTH / 60,
+            'cloudsFront': -2 * SCREEN_WIDTH / 60,
+            'ground': OBSTACLE_SPEED * SCREEN_WIDTH / 60
+        }
 
-# Load and scale sprite images
-sprite_images = [pygame.image.load(f'Assets/Sprites/ninjaRun{i}.png') for i in range(1, 12)]
-sprite_images_flipped = [pygame.transform.flip(img, False, True) for img in sprite_images]
+    def update(self, elapsedTime):
+        for key in self.bgXPos.keys():
+            self.bgXPos[key] = [(x + self.bgSpeeds[key] * elapsedTime) % SCREEN_WIDTH for x in self.bgXPos[key]]
 
-# Scale factor for the sprite
-sprite_scale = 0.06
-scaled_sprite_height = int(SCREEN_HEIGHT * sprite_scale)
-scaled_sprite_width = int(sprite_images[0].get_width() * scaled_sprite_height / sprite_images[0].get_height())
-sprite_images = [pygame.transform.scale(img, (scaled_sprite_width, scaled_sprite_height)) for img in sprite_images]
-sprite_images_flipped = [pygame.transform.scale(img, (scaled_sprite_width, scaled_sprite_height)) for img in sprite_images_flipped]
+    def draw(self, screen):
+        screen.blit(self.bgImgs['sky'], (0, 0))
+        for key in ['cloudsBack', 'cloudsFront', 'ground']:
+            for xPos in self.bgXPos[key]:
+                screen.blit(self.bgImgs[key], (xPos, 0))
+                if xPos < SCREEN_WIDTH:
+                    screen.blit(self.bgImgs[key], (xPos - SCREEN_WIDTH, 0))
 
-# Initial sprite settings
-current_sprite = 0
-sprite_image = sprite_images[current_sprite]  # Default to non-flipped images
-sprite_rect = sprite_image.get_rect(topleft=(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT // 2 - scaled_sprite_height // 2))
+class Player:
+    def __init__(self):
+        self.spriteImgs = [pygame.image.load(f'Assets/Sprites/ninjaRun{i}.png') for i in range(1, 12)]
+        self.spriteImgsFlipped = [pygame.transform.flip(img, False, True) for img in self.spriteImgs]
+        scaledSpriteHeight = int(SCREEN_HEIGHT * SPRITE_SCALE)
+        scaledSpriteWidth = int(self.spriteImgs[0].get_width() * scaledSpriteHeight / self.spriteImgs[0].get_height())
+        self.spriteImgs = [pygame.transform.scale(img, (scaledSpriteWidth, scaledSpriteHeight)) for img in self.spriteImgs]
+        self.spriteImgsFlipped = [pygame.transform.scale(img, (scaledSpriteWidth, scaledSpriteHeight)) for img in self.spriteImgsFlipped]
+        self.currSprite = 0
+        self.spriteImg = self.spriteImgs[self.currSprite]
+        self.spriteRect = self.spriteImg.get_rect(topleft=(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT // 2 - scaledSpriteHeight // 2))
+        self.playerVel = [0, 0]
+        self.playerAcc = [0, 0.35]
+        self.gravFlipped = False
+        self.lastUpdate = pygame.time.get_ticks()
 
-# Player physics properties
-player_vel = [0, 0]
-player_acc = [0, 0.35]  # Adjusted for noticeable effect
-gravity_flipped = False
-max_vel = 5  # Max vertical velocity
+    def update(self):
+        now = pygame.time.get_ticks()
+        if now - self.lastUpdate > ANIMATION_TIME:
+            self.lastUpdate = now
+            self.currSprite = (self.currSprite + 1) % len(self.spriteImgs)
+            self.spriteImg = self.spriteImgs[self.currSprite]
+        self.playerVel[1] += self.playerAcc[1]
+        self.playerVel[1] = max(-MAX_VEL, min(MAX_VEL, self.playerVel[1]))
+        self.spriteRect.y += self.playerVel[1]
+        if self.spriteRect.top <= 0:
+            self.spriteRect.top = 0
+            self.playerVel[1] = 0
+        elif self.spriteRect.bottom >= SCREEN_HEIGHT:
+            self.spriteRect.bottom = SCREEN_HEIGHT
+            self.playerVel[1] = 0
 
-# Obstacle properties
-obstacle_width = int(SCREEN_WIDTH * 0.05)
-obstacle_gap = SCREEN_HEIGHT * 0.2
-obstacle_speed = -4
-obstacles = []
-obstacle_id = 0  # Unique identifier for obstacle pairs
+    def draw(self, screen):
+        screen.blit(self.spriteImg, self.spriteRect)
 
-# Score properties
-score = 0
-font = pygame.font.SysFont(None, 36)
+    def flipGravity(self):
+        self.gravFlipped = not self.gravFlipped
+        self.playerAcc[1] = -self.playerAcc[1]
+        self.spriteImgs, self.spriteImgsFlipped = self.spriteImgsFlipped, self.spriteImgs
+        self.spriteImg = self.spriteImgs[self.currSprite]
 
-# Animation timing
-animation_time = 10 # Time (in milliseconds) between frames
-last_update = pygame.time.get_ticks()
+class ObstacleManager:
+    def __init__(self):
+        self.obstacles = []
+        self.obstacleID = 0
 
-# Load and scale static background images
-background_images = {
-    'sky': pygame.image.load('Assets/Background/sky.png').convert_alpha(),
-    'cloudsBack': pygame.image.load('Assets/Background/cloudsBack.png').convert_alpha(),
-    'cloudsFront': pygame.image.load('Assets/Background/cloudsFront.png').convert_alpha(),
-    'ground': pygame.image.load('Assets/Background/ground.png').convert_alpha()
-}
+    def update(self):
+        if not self.obstacles or self.obstacles[-1]['x'] < SCREEN_WIDTH * 0.75:
+            obstacleHeight = random.randint(int(SCREEN_HEIGHT * 0.1), int(SCREEN_HEIGHT * 0.6))
+            self.obstacles.append({'x': SCREEN_WIDTH, 'y': 0, 'height': obstacleHeight, 'id': self.obstacleID, 'passed': False})
+            self.obstacles.append({'x': SCREEN_WIDTH, 'y': obstacleHeight + OBSTACLE_GAP, 'height': SCREEN_HEIGHT - (obstacleHeight + OBSTACLE_GAP), 'id': self.obstacleID, 'passed': False})
+            self.obstacleID += 1
+        self.obstacles = [{'x': obstacle['x'] + OBSTACLE_SPEED, 'y': obstacle['y'], 'height': obstacle['height'], 'id': obstacle['id'], 'passed': obstacle['passed']} for obstacle in self.obstacles]
+        self.obstacles = [obstacle for obstacle in self.obstacles if obstacle['x'] + OBSTACLE_WIDTH > 0]
 
-# Initial positions for moving backgrounds (two instances of each for looping)
-background_x_positions = {
-    'cloudsBack': [0, SCREEN_WIDTH],
-    'cloudsFront': [0, SCREEN_WIDTH],
-    'ground': [0, SCREEN_WIDTH]
-}
+    def draw(self, screen):
+        for obstacle in self.obstacles:
+            pygame.draw.rect(screen, RED, (obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['height']))
 
-# Speeds for moving backgrounds
-background_speeds = {
-    'cloudsBack': -1 * SCREEN_WIDTH / 60,
-    'cloudsFront': -2 * SCREEN_WIDTH / 60,
-    'ground': obstacle_speed * SCREEN_WIDTH / 60
-}
+    def checkCollision(self, playerRect):
+        for obstacle in self.obstacles:
+            obstacleRect = pygame.Rect(obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['height'])
+            if playerRect.colliderect(obstacleRect):
+                return True
+        return False
 
-# Main game loop
-running = True
-clock = pygame.time.Clock()
-while running:
-    elapsed_time = clock.get_time() / 1000  # Convert milliseconds to seconds
+    def updateScore(self, playerRect, score):
+        for obstacle in self.obstacles:
+            if playerRect.right > obstacle['x'] + OBSTACLE_WIDTH and not obstacle['passed']:
+                obstacle['passed'] = True
+                pairPassed = all(ob['passed'] for ob in self.obstacles if ob['id'] == obstacle['id'])
+                if pairPassed:
+                    score += 1
+                    for ob in self.obstacles:
+                        if ob['id'] == obstacle['id']:
+                            ob['passed'] = True
+        return score
 
-    # Event handling
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                gravity_flipped = not gravity_flipped
-                player_acc[1] = -player_acc[1]
-                sprite_images, sprite_images_flipped = sprite_images_flipped, sprite_images  # Swap lists
-                sprite_image = sprite_images[current_sprite]  # Ensure sprite image updates immediately
+class Game:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.player = Player()
+        self.obstacleMngr = ObstacleManager()
+        self.bgMngr = BackgroundManager()
+        self.score = 0
+        self.font = pygame.font.SysFont(None, 36)
 
-    # Update sprite animation
-    now = pygame.time.get_ticks()
-    if now - last_update > animation_time:
-        last_update = now
-        current_sprite = (current_sprite + 1) % len(sprite_images)
-        sprite_image = sprite_images[current_sprite]
+    def run(self):
+        while self.running:
+            elapsedTime = self.clock.get_time() / 1000
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    self.player.flipGravity()
 
-    # Player physics
-    player_vel[1] += player_acc[1]
-    player_vel[1] = max(-max_vel, min(max_vel, player_vel[1]))
-    sprite_rect.y += player_vel[1]
+            self.player.update()
+            self.bgMngr.update(elapsedTime)
+            self.obstacleMngr.update()
+            self.score = self.obstacleMngr.updateScore(self.player.spriteRect, self.score)
 
-    # Prevent sprite from going out of bounds
-    if sprite_rect.top <= 0:
-        sprite_rect.top = 0
-        player_vel[1] = 0
-    elif sprite_rect.bottom >= SCREEN_HEIGHT:
-        sprite_rect.bottom = SCREEN_HEIGHT
-        player_vel[1] = 0
+            self.screen.fill(BLACK)
+            self.bgMngr.draw(self.screen)
+            self.player.draw(self.screen)
+            self.obstacleMngr.draw(self.screen)
+            scoreTxt = self.font.render(f"Score: {self.score}", True, WHITE)
+            self.screen.blit(scoreTxt, (10, 10))
 
-    # Update and loop backgrounds
-    for key in background_x_positions.keys():
-        background_x_positions[key] = [(x + background_speeds[key] * elapsed_time) % SCREEN_WIDTH for x in background_x_positions[key]]
+            pygame.display.flip()
 
-    # Obstacle creation and management
-    if not obstacles or obstacles[-1]['x'] < SCREEN_WIDTH * 0.75:
-        obstacle_height = random.randint(int(SCREEN_HEIGHT * 0.1), int(SCREEN_HEIGHT * 0.6))
-        obstacles.append({'x': SCREEN_WIDTH, 'y': 0, 'height': obstacle_height, 'id': obstacle_id, 'passed': False})
-        obstacles.append({'x': SCREEN_WIDTH, 'y': obstacle_height + obstacle_gap, 'height': SCREEN_HEIGHT - (obstacle_height + obstacle_gap), 'id': obstacle_id, 'passed': False})
-        obstacle_id += 1
+            if self.obstacleMngr.checkCollision(self.player.spriteRect):
+                print("Game Over!")
+                self.running = False
 
-    obstacles = [{'x': obstacle['x'] + obstacle_speed, 'y': obstacle['y'], 'height': obstacle['height'], 'id': obstacle['id'], 'passed': obstacle['passed']} for obstacle in obstacles]
+            self.clock.tick(60)
 
-    # Remove off-screen obstacles and update score
-    obstacles = [obstacle for obstacle in obstacles if obstacle['x'] + obstacle_width > 0]
-    for obstacle in obstacles:
-        if sprite_rect.right > obstacle['x'] + obstacle_width and not obstacle['passed']:
-            obstacle['passed'] = True
-            # Check if both obstacles of the pair have been passed
-            pair_passed = all(ob['passed'] for ob in obstacles if ob['id'] == obstacle['id'])
-            if pair_passed:
-                # Increment score only once per obstacle pair
-                score += 1
-                # Prevent future score increment for this pair
-                for ob in obstacles:
-                    if ob['id'] == obstacle['id']:
-                        ob['passed'] = True
+        pygame.quit()
+        sys.exit()
 
-    # Drawing
-    screen.fill(BLACK)
-    screen.blit(background_images['sky'], (0, 0))
-    for key in ['cloudsBack', 'cloudsFront', 'ground']:
-        for x_position in background_x_positions[key]:
-            screen.blit(background_images[key], (x_position, 0))
-            if x_position < SCREEN_WIDTH:
-                screen.blit(background_images[key], (x_position - SCREEN_WIDTH, 0))
-    screen.blit(sprite_image, sprite_rect)
-    for obstacle in obstacles:
-        pygame.draw.rect(screen, RED, (obstacle['x'], obstacle['y'], obstacle_width, obstacle['height']))
-
-    # Display score
-    score_text = font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (10, 10))
-
-    pygame.display.flip()
-
-    # Collision detection
-    for obstacle in obstacles:
-        obstacle_rect = pygame.Rect(obstacle['x'], obstacle['y'], obstacle_width, obstacle['height'])
-        if sprite_rect.colliderect(obstacle_rect):
-            running = False
-            print("Game Over!")
-            break
-
-    # Cap the frame rate
-    clock.tick(60)
-
-pygame.quit()
-sys.exit()
+if __name__ == '__main__':
+    game = Game()
+    game.run()
