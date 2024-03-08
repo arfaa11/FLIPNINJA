@@ -214,11 +214,11 @@ class Game:
             self.screen.blit(animButton, animRect)
             self.retryButtonAnimPhase += 0.015
 
-        self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 100, self.retryButtonAnimPhase - 1)
+        self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 350, self.retryButtonAnimPhase - 1)
 
         bestScoreStr = f"Best Score: {self.bestScore}"
         bestScoreText = self.font.render(bestScoreStr, True, WHITE)
-        self.screen.blit(bestScoreText, (SCREEN_WIDTH / 2 - bestScoreText.get_width() / 2, SCREEN_HEIGHT / 2 + 100))
+        self.screen.blit(bestScoreText, (SCREEN_WIDTH / 2 - bestScoreText.get_width() / 2, SCREEN_HEIGHT / 2 - 250))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
