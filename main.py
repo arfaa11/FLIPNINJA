@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import math
 
 # Initialize Pygame
 pygame.init()
@@ -14,6 +15,7 @@ OBSTACLE_WIDTH = int(SCREEN_WIDTH * 0.05)
 OBSTACLE_GAP = SCREEN_HEIGHT * 0.2
 OBSTACLE_SPEED = -4
 ANIMATION_TIME = 10
+BUTTON_SIZE = (360, 258)  # 3x the original size
 
 class BackgroundManager:
     def __init__(self):
@@ -129,40 +131,122 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.running = True
+        self.inStartMenu = True  # To control when to show the start menu
         self.player = Player()
         self.obstacleMngr = ObstacleManager()
         self.bgMngr = BackgroundManager()
         self.score = 0
         self.font = pygame.font.SysFont(None, 36)
+        self.loadButtons()
+        self.startButtonAnimPhase = 0
+        self.retryButtonAnimPhase = 0
+        self.showGameOverScreen = False  # New attribute to control the game over screen
+
+
+    def loadButtons(self):
+        self.startButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/startButton.png').convert_alpha(), BUTTON_SIZE)
+        self.settingsButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/settingsButton.png').convert_alpha(), BUTTON_SIZE)
+        self.retryButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/retryButton.png').convert_alpha(), BUTTON_SIZE)
+        self.startButtonRect = self.startButtonImg.get_rect(center=(SCREEN_WIDTH/2 - BUTTON_SIZE[0]/2 - 25, SCREEN_HEIGHT/2))
+        self.settingsButtonRect = self.settingsButtonImg.get_rect(center=(SCREEN_WIDTH/2 + BUTTON_SIZE[0]/2 + 25, SCREEN_HEIGHT/2))
+        self.retryButtonRect = self.retryButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+
+    def runStartMenu(self):
+        self.screen.fill(BLACK)
+        mx, my = pygame.mouse.get_pos()
+        
+        # Button Animation for Start Button
+        if self.startButtonRect.collidepoint((mx, my)):
+            self.screen.blit(self.startButtonImg, self.startButtonRect)
+        else:
+            scaleFactor = 1.10 + 0.05 * math.sin(self.startButtonAnimPhase)
+            animButton = pygame.transform.scale(self.startButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
+            animRect = animButton.get_rect(center=self.startButtonRect.center)
+            self.screen.blit(animButton, animRect)
+            self.startButtonAnimPhase += 0.015
+        
+        # Settings Button - No Animation
+        self.screen.blit(self.settingsButtonImg, self.settingsButtonRect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                self.inStartMenu = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.startButtonRect.collidepoint((mx, my)):
+                    self.inStartMenu = False  # Start the game
+                
+        pygame.display.flip()
+
+    def runGameOverScreen(self):
+        self.screen.fill(BLACK)
+        mx, my = pygame.mouse.get_pos()
+
+        # Draw semi-transparent rectangle
+        s = pygame.Surface((800, 400), pygame.SRCALPHA)  # Size of the rectangle
+        s.fill((0, 0, 0, 180))  # Black rectangle with transparency
+        self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 200))
+
+        # Retry Button Animation
+        if self.retryButtonRect.collidepoint((mx, my)):
+            self.screen.blit(self.retryButtonImg, self.retryButtonRect)
+        else:
+            scaleFactor = 1.15 + 0.10 * math.sin(self.retryButtonAnimPhase)
+            animButton = pygame.transform.scale(self.retryButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
+            animRect = animButton.get_rect(center=self.retryButtonRect.center)
+            self.screen.blit(animButton, animRect)
+            self.retryButtonAnimPhase += 0.015
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                self.showGameOverScreen = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.retryButtonRect.collidepoint((mx, my)):
+                    self.restartGame()
+
+        pygame.display.flip()
+
+    def restartGame(self):
+           # Reset game state for a new game
+           self.player = Player()
+           self.obstacleMngr = ObstacleManager()
+           self.score = 0
+           self.showGameOverScreen = False
+           self.inStartMenu = False  # Or set this to False to restart immediately
 
     def run(self):
         while self.running:
-            elapsedTime = self.clock.get_time() / 1000
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.player.flipGravity()
+            if self.inStartMenu:
+                self.runStartMenu()
+            elif self.showGameOverScreen:
+                self.runGameOverScreen()
+            else:
+                elapsedTime = self.clock.get_time() / 1000
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self.running = False
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                        self.player.flipGravity()
 
-            self.player.update()
-            self.bgMngr.update(elapsedTime)
-            self.obstacleMngr.update()
-            self.score = self.obstacleMngr.updateScore(self.player.spriteRect, self.score)
+                self.player.update()
+                self.bgMngr.update(elapsedTime)
+                self.obstacleMngr.update()
+                self.score = self.obstacleMngr.updateScore(self.player.spriteRect, self.score)
 
-            self.screen.fill(BLACK)
-            self.bgMngr.draw(self.screen)
-            self.player.draw(self.screen)
-            self.obstacleMngr.draw(self.screen)
-            scoreTxt = self.font.render(f"Score: {self.score}", True, WHITE)
-            self.screen.blit(scoreTxt, (10, 10))
+                self.screen.fill(BLACK)
+                self.bgMngr.draw(self.screen)
+                self.player.draw(self.screen)
+                self.obstacleMngr.draw(self.screen)
+                scoreTxt = self.font.render(f"Score: {self.score}", True, WHITE)
+                self.screen.blit(scoreTxt, (10, 10))
 
-            pygame.display.flip()
+                pygame.display.flip()
 
-            if self.obstacleMngr.checkCollision(self.player.spriteRect):
-                print("Game Over!")
-                self.running = False
+                if self.obstacleMngr.checkCollision(self.player.spriteRect):
+                    self.showGameOverScreen = True  # Show game over screen instead of quitting
 
-            self.clock.tick(60)
+                self.clock.tick(60)
 
         pygame.quit()
         sys.exit()
