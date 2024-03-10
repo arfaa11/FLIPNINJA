@@ -141,7 +141,7 @@ class Game:
         self.obstacleMngr = ObstacleManager()
         self.bgMngr = BackgroundManager()
         self.score = 0
-        self.font = pygame.font.SysFont(None, 36)
+        self.font = pygame.font.SysFont('firacodenerdfontpropomed', 28)
         self.loadButtons()
         self.startButtonAnimPhase = 0
         self.settingsButtonAnimPhase = 0
@@ -158,8 +158,20 @@ class Game:
         self.gameMusicStarted = False  # Add this line
         self.inGame = False
         self.homeButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/homeButton.png').convert_alpha(), (BUTTON_SIZE[0]/1.5, BUTTON_SIZE[1]/1.5))
-        self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1]))
+        self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1] * 1.5))
         self.homeButtonAnimPhase = 0
+        self.volume = 0.5  # Default volume level
+        self.isMuted = False  # Mute state
+        self.inSettings = False  # Flag to toggle settings UI
+        self.muteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/muteButton.png').convert_alpha(), (100, 100))
+        self.unmuteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/unmuteButton.png').convert_alpha(), (100, 100))
+        self.volumeButtonImg = self.unmuteButtonImg  # Start with unmute image
+        self.volumeButtonRect = self.unmuteButtonImg.get_rect(topright=(SCREEN_WIDTH - 150, 110))  # Adjust position as needed
+        self.deathSound = pygame.mixer.Sound('Assets/Music/death.wav')  # Load the death sound
+        self.volumeSliderRects = []
+        self.initVolumeSlider()
+        self.volumeTextFont = pygame.font.SysFont('segoeui', 36, bold=True)  # Choose an appropriate font size
+        self.volumeText = self.volumeTextFont.render('Game Volume', True, WHITE)
 
 
     def loadNumberImages(self):
@@ -172,7 +184,7 @@ class Game:
         self.retryButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/retryButton.png').convert_alpha(), BUTTON_SIZE)
         self.startButtonRect = self.startButtonImg.get_rect(center=(SCREEN_WIDTH/2 - BUTTON_SIZE[0]/2 - 45, SCREEN_HEIGHT/2))
         self.settingsButtonRect = self.settingsButtonImg.get_rect(center=(SCREEN_WIDTH/2 + BUTTON_SIZE[0]/2 + 45, SCREEN_HEIGHT/2))
-        self.retryButtonRect = self.retryButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+        self.retryButtonRect = self.retryButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100))
 
     def updateScoreRecord(self, currentScore):
         try:
@@ -222,6 +234,16 @@ class Game:
         s.fill((0, 0, 0, 180))
         self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 300))
 
+        # Draw "YOU DIED!" text with animation
+        pygame.font.init()
+        youDiedFont = pygame.font.SysFont("firacodenerdfontpropomed", 78) 
+        youDiedText = youDiedFont.render("You Died!", True, RED)
+        youDiedTextSize = youDiedText.get_size()
+        scaleFactor = 1.1 + 0.05 * math.sin(pygame.time.get_ticks() / 200)  # Adjust for desired animation speed and size
+        youDiedText = pygame.transform.scale(youDiedText, (int(youDiedTextSize[0] * scaleFactor), int(youDiedTextSize[1] * scaleFactor)))
+        youDiedRect = youDiedText.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 450))  # Adjust Y position as needed
+        self.screen.blit(youDiedText, youDiedRect.topleft)
+
         homeButtonYOffset = self.retryButtonRect.bottom + 50  # 20 pixels below the retry button
 
         # Logic for animating and positioning the retry button
@@ -254,11 +276,11 @@ class Game:
         # Logic for animating and positioning the home button below the retry button
         homeButtonYOffset = self.retryButtonRect.bottom + 20  # 20 pixels below the retry button
 
-        self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 350, self.retryButtonAnimPhase - 1)
+        self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 250, self.retryButtonAnimPhase - 1)
 
         bestScoreStr = f"Best Score: {self.bestScore}"
         bestScoreText = self.font.render(bestScoreStr, True, WHITE)
-        self.screen.blit(bestScoreText, (SCREEN_WIDTH / 2 - bestScoreText.get_width() / 2, SCREEN_HEIGHT / 2 - 250))
+        self.screen.blit(bestScoreText, (SCREEN_WIDTH / 2 - bestScoreText.get_width() / 2, SCREEN_HEIGHT / 2 - 150))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -303,60 +325,133 @@ class Game:
         pygame.mixer.music.load('Assets/Music/gameMusic.wav')  # Load the menu music
         pygame.mixer.music.play(-1)  # Play the music in a loop (the -1 means it loops indefinitely)
     
+    def toggleMute(self):
+        if self.volume > 0:
+            self.volume = 0
+            self.volumeButtonImg = self.muteButtonImg
+        else:
+            self.volume = 0.5  # Restore volume
+            self.volumeButtonImg = self.unmuteButtonImg
+        pygame.mixer.music.set_volume(self.volume)
+
+    def initVolumeSlider(self):
+        # Initialize the slider to the right of the mute button, with a small gap
+        sliderXStart = self.volumeButtonRect.right - 1450
+        sliderY = self.volumeButtonRect.bottom - 75  # Align with the middle of the mute button
+        rectWidth, rectHeight = 120, self.volumeButtonRect.height / 2  # Match height of the mute button, adjust width as desired
+        spacing = 10  # Space between rectangles
+
+        self.volOnImg = pygame.image.load('Assets/Buttons/volOn.png').convert_alpha()
+        self.volOffImg = pygame.image.load('Assets/Buttons/volOff.png').convert_alpha()
+
+        for i in range(10):
+            x = sliderXStart + i * (rectWidth + spacing)
+            rect = pygame.Rect(x, sliderY, rectWidth, rectHeight)
+            self.volumeSliderRects.append(rect)
+
+    def drawVolumeSlider(self):
+        for i, rect in enumerate(self.volumeSliderRects):
+            if i < self.volume * 10:
+                self.screen.blit(pygame.transform.scale(self.volOnImg, (rect.width, rect.height)), (rect.x, rect.y))
+            else:
+                self.screen.blit(pygame.transform.scale(self.volOffImg, (rect.width, rect.height)), (rect.x, rect.y))
+
+    def drawSettingsUI(self):
+        while self.inSettings:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = pygame.mouse.get_pos()
+                    # Check if a volume slider rectangle is clicked
+                    for i, rect in enumerate(self.volumeSliderRects):
+                        if rect.collidepoint(pos):
+                            self.setVolume((i + 1) / 10.0)  # Set volume based on the rectangle clicked
+                            break
+                    # Check if the mute button is clicked
+                    if self.volumeButtonRect.collidepoint(pos):
+                        self.toggleMute()
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self.inSettings = False
+                    self.inStartMenu = True
+
+            # Redraw the settings UI
+            self.screen.fill(BLACK)
+            # Draw the volume text each time the settings UI is updated
+            volumeTextPos = (self.volumeSliderRects[0].left - 250, (self.volumeSliderRects[0].centery - self.volumeTextFont.get_height() // 2 ) - 5)
+            self.screen.blit(self.volumeText, volumeTextPos)
+            self.drawVolumeSlider()
+            self.screen.blit(self.volumeButtonImg, self.volumeButtonRect)
+            pygame.display.flip()
+
+    def setVolume(self, volume):
+        self.volume = volume
+        pygame.mixer.music.set_volume(self.volume)
+        if volume > 0:
+            self.volumeButtonImg = self.unmuteButtonImg
+        else:
+            self.volumeButtonImg = self.muteButtonImg
+
     def runStartMenu(self):
         self.screen.fill(BLACK)
         mx, my = pygame.mouse.get_pos()
         
-        if self.startButtonRect.collidepoint((mx, my)):
-            if not self.hoverSoundPlayed:
-                self.hoverSound.play()
-                self.hoverSoundPlayed = True
-            self.screen.blit(self.startButtonImg, self.startButtonRect)
-                    
-        elif self.settingsButtonRect.collidepoint((mx, my)):
-            if not self.hoverSoundPlayed:
-                self.hoverSound.play()
-                self.hoverSoundPlayed = True
-            self.screen.blit(self.settingsButtonImg, self.settingsButtonRect)
+        if self.inSettings:
+            self.drawSettingsUI()
         
-        else:
-            self.hoverSoundPlayed = False  # Reset flag when not hovering
-            
-            scaleFactor = 1.10 + 0.05 * math.sin(self.startButtonAnimPhase)
-            animButton = pygame.transform.scale(self.startButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
-            animRect = animButton.get_rect(center=self.startButtonRect.center)
-            self.screen.blit(animButton, animRect)
-            self.startButtonAnimPhase += 0.015
-            
-            scaleFactorB = 1.10 + 0.05 * math.sin(self.settingsButtonAnimPhase)
-            animButtonB = pygame.transform.scale(self.settingsButtonImg, (int(BUTTON_SIZE[0] * scaleFactorB), int(BUTTON_SIZE[1] * scaleFactorB)))
-            animRectB = animButtonB.get_rect(center=self.settingsButtonRect.center)
-            self.screen.blit(animButtonB, animRectB)
-            self.settingsButtonAnimPhase += 0.015
-        
+        else:    
+            if self.startButtonRect.collidepoint((mx, my)):
+                if not self.hoverSoundPlayed:
+                    self.hoverSound.play()
+                    self.hoverSoundPlayed = True
+                self.screen.blit(self.startButtonImg, self.startButtonRect)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-                self.inStartMenu = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if self.startButtonRect.collidepoint((mx, my)):
-                    pygame.mixer.music.stop()  # Stop the menu music
-                    self.selectSound.play()
+            elif self.settingsButtonRect.collidepoint((mx, my)):
+                if not self.hoverSoundPlayed:
+                    self.hoverSound.play()
+                    self.hoverSoundPlayed = True
+                self.screen.blit(self.settingsButtonImg, self.settingsButtonRect)
+
+            else:
+                self.hoverSoundPlayed = False  # Reset flag when not hovering
+
+                scaleFactor = 1.10 + 0.05 * math.sin(self.startButtonAnimPhase)
+                animButton = pygame.transform.scale(self.startButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
+                animRect = animButton.get_rect(center=self.startButtonRect.center)
+                self.screen.blit(animButton, animRect)
+                self.startButtonAnimPhase += 0.015
+
+                scaleFactorB = 1.10 + 0.05 * math.sin(self.settingsButtonAnimPhase)
+                animButtonB = pygame.transform.scale(self.settingsButtonImg, (int(BUTTON_SIZE[0] * scaleFactorB), int(BUTTON_SIZE[1] * scaleFactorB)))
+                animRectB = animButtonB.get_rect(center=self.settingsButtonRect.center)
+                self.screen.blit(animButtonB, animRectB)
+                self.settingsButtonAnimPhase += 0.015
+
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
                     self.inStartMenu = False
-                    self.inGame = True
-                    if not self.gameMusicStarted:
-                        self.playGameMusic()  # Start game music
-                        self.gameMusicStarted = True  # Prevent future calls
-                
-                elif self.settingsButtonRect.collidepoint((mx, my)):
-                    self.selectSound.play()
-                    self.selectSoundPlayed = True
-                
-                else:
-                    self.selectSoundPlayed = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.startButtonRect.collidepoint((mx, my)):
+                        pygame.mixer.music.stop()  # Stop the menu music
+                        self.selectSound.play()
+                        self.inStartMenu = False
+                        self.inGame = True
+                        if not self.gameMusicStarted:
+                            self.playGameMusic()  # Start game music
+                            self.gameMusicStarted = True  # Prevent future calls
 
-        pygame.display.flip()
+                    elif self.settingsButtonRect.collidepoint((mx, my)):
+                        self.selectSound.play()
+                        self.selectSoundPlayed = True
+                        self.inSettings = True  # Open settings UI
+
+                    else:
+                        self.selectSoundPlayed = False
+
+            pygame.display.flip()
 
     def drawScore(self):
         scoreStr = str(self.score)
@@ -392,7 +487,8 @@ class Game:
 
                 pygame.display.flip()
 
-                if self.obstacleMngr.checkCollision(self.player.spriteRect):
+                if self.obstacleMngr.checkCollision(self.player.spriteRect) or (self.player.spriteRect.top <= 0 or self.player.spriteRect.bottom >= SCREEN_HEIGHT):
+                    self.deathSound.play()
                     pygame.mixer.music.stop()  # Stop the game music here
                     self.showGameOverScreen = True
 
