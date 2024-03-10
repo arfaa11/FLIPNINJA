@@ -7,6 +7,8 @@ import os
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.init()
+pygame.mixer.music.set_volume(1)  
 
 # Constants
 SCREEN_WIDTH, SCREEN_HEIGHT = 1920, 1080
@@ -142,11 +144,23 @@ class Game:
         self.font = pygame.font.SysFont(None, 36)
         self.loadButtons()
         self.startButtonAnimPhase = 0
+        self.settingsButtonAnimPhase = 0
         self.retryButtonAnimPhase = 0
         self.showGameOverScreen = False
         self.numberImgs = self.loadNumberImages()
         self.scoreRecordsPath = 'Extras/scoreRecords.json'
         self.bestScore = self.getBestScore()
+        self.playMenuMusic()  # Play menu music when the game object is initialized
+        self.hoverSound = pygame.mixer.Sound('Assets/Music/hover.wav')  # Load hover sound
+        self.hoverSoundPlayed = False  # Flag to track if the hover sound has been played
+        self.selectSound = pygame.mixer.Sound('Assets/Music/select.wav')  # Load select sound
+        self.selectSoundPlayed = False # Flag to track if select sound has been played
+        self.gameMusicStarted = False  # Add this line
+        self.inGame = False
+        self.homeButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/homeButton.png').convert_alpha(), (BUTTON_SIZE[0]/1.5, BUTTON_SIZE[1]/1.5))
+        self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1]))
+        self.homeButtonAnimPhase = 0
+
 
     def loadNumberImages(self):
         numberPaths = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
@@ -156,8 +170,8 @@ class Game:
         self.startButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/startButton.png').convert_alpha(), BUTTON_SIZE)
         self.settingsButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/settingsButton.png').convert_alpha(), BUTTON_SIZE)
         self.retryButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/retryButton.png').convert_alpha(), BUTTON_SIZE)
-        self.startButtonRect = self.startButtonImg.get_rect(center=(SCREEN_WIDTH/2 - BUTTON_SIZE[0]/2 - 25, SCREEN_HEIGHT/2))
-        self.settingsButtonRect = self.settingsButtonImg.get_rect(center=(SCREEN_WIDTH/2 + BUTTON_SIZE[0]/2 + 25, SCREEN_HEIGHT/2))
+        self.startButtonRect = self.startButtonImg.get_rect(center=(SCREEN_WIDTH/2 - BUTTON_SIZE[0]/2 - 45, SCREEN_HEIGHT/2))
+        self.settingsButtonRect = self.settingsButtonImg.get_rect(center=(SCREEN_WIDTH/2 + BUTTON_SIZE[0]/2 + 45, SCREEN_HEIGHT/2))
         self.retryButtonRect = self.retryButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
 
     def updateScoreRecord(self, currentScore):
@@ -201,18 +215,44 @@ class Game:
         self.screen.fill(BLACK)
         mx, my = pygame.mouse.get_pos()
 
-        s = pygame.Surface((800, 600), pygame.SRCALPHA)  # Semi-transparent overlay
+        self.screen.fill(BLACK)
+        mx, my = pygame.mouse.get_pos()
+
+        s = pygame.Surface((800, 600), pygame.SRCALPHA)   # Semi-transparent overlay
         s.fill((0, 0, 0, 180))
         self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 300))
 
+        homeButtonYOffset = self.retryButtonRect.bottom + 50  # 20 pixels below the retry button
+
+        # Logic for animating and positioning the retry button
         if self.retryButtonRect.collidepoint((mx, my)):
+            if not self.hoverSoundPlayed:
+                self.hoverSound.play()
+                self.hoverSoundPlayed = True
             self.screen.blit(self.retryButtonImg, self.retryButtonRect)
+        
+        elif self.homeButtonRect.collidepoint((mx, my)):
+            if not self.hoverSoundPlayed:
+                self.hoverSound.play()
+                self.hoverSoundPlayed = True
+            self.screen.blit(self.homeButtonImg, self.homeButtonRect.move(0, homeButtonYOffset - self.homeButtonRect.top))
+        
         else:
-            scaleFactor = 1.15 + 0.10 * math.sin(self.retryButtonAnimPhase)
-            animButton = pygame.transform.scale(self.retryButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
-            animRect = animButton.get_rect(center=self.retryButtonRect.center)
-            self.screen.blit(animButton, animRect)
+            scaleFactorRetry = 1.15 + 0.10 * math.sin(self.retryButtonAnimPhase)
+            animButtonRetry = pygame.transform.scale(self.retryButtonImg, (int(BUTTON_SIZE[0] * scaleFactorRetry), int(BUTTON_SIZE[1] * scaleFactorRetry)))
+            animRectRetry = animButtonRetry.get_rect(center=self.retryButtonRect.center)
+            self.screen.blit(animButtonRetry, animRectRetry)
             self.retryButtonAnimPhase += 0.015
+            self.hoverSoundPlayed = False  # Reset flag when not hovering
+            
+            scaleFactorHome = 1.05 + 0.05 * math.sin(self.homeButtonAnimPhase)  # Smaller scale factor for home button
+            animButtonHome = pygame.transform.scale(self.homeButtonImg, (int(self.homeButtonImg.get_width() * scaleFactorHome), int(self.homeButtonImg.get_height() * scaleFactorHome)))
+            animRectHome = animButtonHome.get_rect(center=(self.homeButtonRect.centerx, homeButtonYOffset + self.homeButtonImg.get_height() / 2))
+            self.screen.blit(animButtonHome, animRectHome)
+            self.homeButtonAnimPhase += 0.015
+
+        # Logic for animating and positioning the home button below the retry button
+        homeButtonYOffset = self.retryButtonRect.bottom + 20  # 20 pixels below the retry button
 
         self.drawAnimatedScore(self.score, SCREEN_HEIGHT / 2 - 350, self.retryButtonAnimPhase - 1)
 
@@ -226,9 +266,20 @@ class Game:
                 self.showGameOverScreen = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.retryButtonRect.collidepoint((mx, my)):
-                    self.updateScoreRecord(self.score)
-                    self.bestScore = self.getBestScore()
+                    self.selectSound.play()
                     self.restartGame()
+                    self.inGame = True
+                    self.inStartMenu = False
+                    self.playGameMusic()
+                elif self.homeButtonRect.collidepoint((mx, my)):
+                    self.selectSound.play()
+                    self.restartGame()
+                    self.gameMusicStarted = False
+                    self.showGameOverScreen = False
+                    self.inStartMenu = True
+                    self.inGame = False
+                    
+                    self.playMenuMusic()
 
         pygame.display.flip()
 
@@ -238,23 +289,51 @@ class Game:
         self.score = 0
         self.showGameOverScreen = False
         self.inStartMenu = False
+        self.inGame = True
 
+        if self.inGame == True:
+            self.playGameMusic()
+            self.gameMusicStarted = True  # Prevent future calls
+
+    def playMenuMusic(self):
+        pygame.mixer.music.load('Assets/Music/menuMusic.wav')  # Load the menu music
+        pygame.mixer.music.play(-1)  # Play the music in a loop (the -1 means it loops indefinitely)
+    
+    def playGameMusic(self):
+        pygame.mixer.music.load('Assets/Music/gameMusic.wav')  # Load the menu music
+        pygame.mixer.music.play(-1)  # Play the music in a loop (the -1 means it loops indefinitely)
+    
     def runStartMenu(self):
         self.screen.fill(BLACK)
         mx, my = pygame.mouse.get_pos()
         
-        # Button Animation for Start Button
         if self.startButtonRect.collidepoint((mx, my)):
+            if not self.hoverSoundPlayed:
+                self.hoverSound.play()
+                self.hoverSoundPlayed = True
             self.screen.blit(self.startButtonImg, self.startButtonRect)
+                    
+        elif self.settingsButtonRect.collidepoint((mx, my)):
+            if not self.hoverSoundPlayed:
+                self.hoverSound.play()
+                self.hoverSoundPlayed = True
+            self.screen.blit(self.settingsButtonImg, self.settingsButtonRect)
+        
         else:
+            self.hoverSoundPlayed = False  # Reset flag when not hovering
+            
             scaleFactor = 1.10 + 0.05 * math.sin(self.startButtonAnimPhase)
             animButton = pygame.transform.scale(self.startButtonImg, (int(BUTTON_SIZE[0] * scaleFactor), int(BUTTON_SIZE[1] * scaleFactor)))
             animRect = animButton.get_rect(center=self.startButtonRect.center)
             self.screen.blit(animButton, animRect)
             self.startButtonAnimPhase += 0.015
+            
+            scaleFactorB = 1.10 + 0.05 * math.sin(self.settingsButtonAnimPhase)
+            animButtonB = pygame.transform.scale(self.settingsButtonImg, (int(BUTTON_SIZE[0] * scaleFactorB), int(BUTTON_SIZE[1] * scaleFactorB)))
+            animRectB = animButtonB.get_rect(center=self.settingsButtonRect.center)
+            self.screen.blit(animButtonB, animRectB)
+            self.settingsButtonAnimPhase += 0.015
         
-        # Settings Button - No Animation
-        self.screen.blit(self.settingsButtonImg, self.settingsButtonRect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -262,8 +341,21 @@ class Game:
                 self.inStartMenu = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.startButtonRect.collidepoint((mx, my)):
-                    self.inStartMenu = False  # Start the game
+                    pygame.mixer.music.stop()  # Stop the menu music
+                    self.selectSound.play()
+                    self.inStartMenu = False
+                    self.inGame = True
+                    if not self.gameMusicStarted:
+                        self.playGameMusic()  # Start game music
+                        self.gameMusicStarted = True  # Prevent future calls
                 
+                elif self.settingsButtonRect.collidepoint((mx, my)):
+                    self.selectSound.play()
+                    self.selectSoundPlayed = True
+                
+                else:
+                    self.selectSoundPlayed = False
+
         pygame.display.flip()
 
     def drawScore(self):
@@ -301,6 +393,7 @@ class Game:
                 pygame.display.flip()
 
                 if self.obstacleMngr.checkCollision(self.player.spriteRect):
+                    pygame.mixer.music.stop()  # Stop the game music here
                     self.showGameOverScreen = True
 
                 self.clock.tick(60)
