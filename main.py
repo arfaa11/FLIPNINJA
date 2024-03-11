@@ -175,6 +175,7 @@ class Game:
         self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5))  # Adjust size as needed
         self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
         self.backHoverSoundPlayed = False
+        self.pointSound = pygame.mixer.Sound('Assets/Music/point.wav')
 
 
     def loadNumberImages(self):
@@ -501,8 +502,11 @@ class Game:
                 self.player.update()
                 self.bgMngr.update(elapsedTime)
                 self.obstacleMngr.update()
+                previous_score = self.score
                 self.score = self.obstacleMngr.updateScore(self.player.spriteRect, self.score)
-
+                if self.score > previous_score:
+                    self.pointSound.play()
+                
                 self.screen.fill(BLACK)
                 self.bgMngr.draw(self.screen)
                 self.player.draw(self.screen)
