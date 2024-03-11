@@ -385,9 +385,11 @@ class Game:
 
     def runGameOverScreen(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: LOGIC TO SET UP THE GAME OVER SCREEN, INCLUDING DETAILS LIKE
+                 THE RETRY BUTTON, AND THE HOME BUTTON, ALONG WITH THE SCORE
+                 OBTAINED, AND THE BEST SCORE
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
     
         self.screen.fill(BLACK)
@@ -481,9 +483,10 @@ class Game:
 
     def restartGame(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: DEFINES LOGIC TO RESTART GAME, AND RESET THE SCORE BY 
+                 MANIPULATING BOOLEAN STATE FLAGS FROM INIT FUNC
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
         
         self.player = Player()
@@ -500,9 +503,9 @@ class Game:
 
     def playMenuMusic(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: FUNCTION TO PLAY THE MENU MUSIC IN A LOOP
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
         
         pygame.mixer.music.load('Assets/Music/menuMusic.wav')  # Load the menu music
@@ -510,9 +513,9 @@ class Game:
     
     def playGameMusic(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: FUNCTION TO PLAY THE GAME PLAY MUSIC IN A LOOP
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
         
         pygame.mixer.music.load('Assets/Music/gameMusic.wav')  # Load the menu music
@@ -520,9 +523,10 @@ class Game:
     
     def toggleMute(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: LOGIC TO TOGGLE BETWEEN MUTE AND UNMUTE AND UPDATE IMAGE IN 
+                 SETTINGS UI ACCORDINGLY
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
         
         if self.volume > 0:
@@ -559,7 +563,7 @@ class Game:
 
     def drawVolumeSlider(self):
         """
-        PURPOSE:
+        PURPOSE: 
         PARAMETER(S):
         RETURN:
         """
@@ -574,9 +578,11 @@ class Game:
 
     def drawSettingsUI(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: CONSTRUCTS THE SETTINGS UI FOR THE USER TO BE ALLOWED TO 
+                 ADJUST VOLUME IN, AND OTHER FEATURES SUCH AS NAVIGATION AND
+                 MUTE BUTTONS
+        PARAMETER(S): NONE
+        RETURN: NONE
         """
         
         while self.inSettings:
