@@ -65,7 +65,7 @@ class Player:
         self.spriteImg = self.spriteImgs[self.currSprite]
         self.spriteRect = self.spriteImg.get_rect(topleft=(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT // 2 - scaledSpriteHeight // 2))
         self.playerVel = [0, 0]
-        self.playerAcc = [0, 0.35]
+        self.playerAcc = [0, 0.5]
         self.gravFlipped = False
         self.lastUpdate = pygame.time.get_ticks()
 
@@ -166,12 +166,15 @@ class Game:
         self.muteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/muteButton.png').convert_alpha(), (100, 100))
         self.unmuteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/unmuteButton.png').convert_alpha(), (100, 100))
         self.volumeButtonImg = self.unmuteButtonImg  # Start with unmute image
-        self.volumeButtonRect = self.unmuteButtonImg.get_rect(topright=(SCREEN_WIDTH - 150, 110))  # Adjust position as needed
+        self.volumeButtonRect = self.unmuteButtonImg.get_rect(topright=(SCREEN_WIDTH - 100, 350))  # Adjust position as needed
         self.deathSound = pygame.mixer.Sound('Assets/Music/death.wav')  # Load the death sound
         self.volumeSliderRects = []
         self.initVolumeSlider()
-        self.volumeTextFont = pygame.font.SysFont('segoeui', 36, bold=True)  # Choose an appropriate font size
+        self.volumeTextFont = pygame.font.SysFont('firacodenerdfontpropomed', 36)  # Choose an appropriate font size
         self.volumeText = self.volumeTextFont.render('Game Volume', True, WHITE)
+        self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5))  # Adjust size as needed
+        self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
+        self.backHoverSoundPlayed = False
 
 
     def loadNumberImages(self):
@@ -372,17 +375,38 @@ class Game:
                     # Check if the mute button is clicked
                     if self.volumeButtonRect.collidepoint(pos):
                         self.toggleMute()
+                    elif self.backButtonRect.collidepoint(pos):
+                        self.selectSound.play()
+                        self.inSettings = False
+                        self.inStartMenu = True
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.inSettings = False
                     self.inStartMenu = True
 
             # Redraw the settings UI
             self.screen.fill(BLACK)
+            
+            # Draw the back button
+            mx, my = pygame.mouse.get_pos()
+            if self.backButtonRect.collidepoint((mx, my)):
+                if not self.backHoverSoundPlayed:
+                    self.hoverSound.play()
+                    self.backHoverSoundPlayed = True  # Set the flag to True after playing the sound
+            else:
+                self.backHoverSoundPlayed = False  # Reset the flag when not hovering
+            self.screen.blit(self.backButtonImg, self.backButtonRect)
+            
+            # Draw the "Settings" title
+            settingsFont = pygame.font.SysFont("firacodenerdfontpropomed", 72)
+            settingsText = settingsFont.render("Settings", True, WHITE)
+            self.screen.blit(settingsText, (self.screen.get_width() / 2 - settingsText.get_width() / 2, 20))
+
             # Draw the volume text each time the settings UI is updated
-            volumeTextPos = (self.volumeSliderRects[0].left - 250, (self.volumeSliderRects[0].centery - self.volumeTextFont.get_height() // 2 ) - 5)
+            volumeTextPos = (self.volumeSliderRects[0].left - 275, (self.volumeSliderRects[0].centery - self.volumeTextFont.get_height() // 2 ))
             self.screen.blit(self.volumeText, volumeTextPos)
             self.drawVolumeSlider()
             self.screen.blit(self.volumeButtonImg, self.volumeButtonRect)
+
             pygame.display.flip()
 
     def setVolume(self, volume):
