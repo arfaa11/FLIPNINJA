@@ -164,75 +164,59 @@ class Player:
 
 class ObstacleManager:
     def __init__(self):
-        """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
-        """
-       
         self.obstacles = []
         self.obstacleID = 0
+        # Load the obstacle image and set up the initial image scaling and obstacle gap
+        self.original_img = pygame.image.load('Assets/Background/treeObstacle.png').convert_alpha()
+        self.obstacle_img = self.original_img
+        self.obstacle_gap = OBSTACLE_GAP
+
+    def add_obstacle(self):
+        # Randomly create a gap within a range that allows the ninja to pass through
+        gap_y = random.randint(int(SCREEN_HEIGHT * 0.2), int(SCREEN_HEIGHT * 0.8 - self.obstacle_gap))
+        bottom_obstacle_y = gap_y + self.obstacle_gap
+
+        # Top obstacle - scaled to fixed width, with variable height
+        top_obstacle_img = pygame.transform.scale(self.obstacle_img, (OBSTACLE_WIDTH, gap_y))
+        top_obstacle_img = pygame.transform.flip(top_obstacle_img, False, True)  # Flip vertically
+
+        # Bottom obstacle - scaled to fixed width and height from bottom of gap to bottom of screen
+        bottom_obstacle_height = SCREEN_HEIGHT - bottom_obstacle_y
+        bottom_obstacle_img = pygame.transform.scale(self.obstacle_img, (OBSTACLE_WIDTH, bottom_obstacle_height))
+
+        self.obstacles.append({'x': SCREEN_WIDTH, 'y': 0, 'img': top_obstacle_img, 'id': self.obstacleID, 'passed': False})
+        self.obstacles.append({'x': SCREEN_WIDTH, 'y': bottom_obstacle_y, 'img': bottom_obstacle_img, 'id': self.obstacleID, 'passed': False})
+        self.obstacleID += 1
 
     def update(self):
-        """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
-        """
-        
+        # Add new obstacles if needed
         if not self.obstacles or self.obstacles[-1]['x'] < SCREEN_WIDTH * 0.75:
-            obstacleHeight = random.randint(int(SCREEN_HEIGHT * 0.1), int(SCREEN_HEIGHT * 0.6))
-            self.obstacles.append({'x': SCREEN_WIDTH, 'y': 0, 'height': obstacleHeight, 'id': self.obstacleID, 'passed': False})
-            self.obstacles.append({'x': SCREEN_WIDTH, 'y': obstacleHeight + OBSTACLE_GAP, 'height': SCREEN_HEIGHT - (obstacleHeight + OBSTACLE_GAP), 'id': self.obstacleID, 'passed': False})
-            self.obstacleID += 1
-        
-        self.obstacles = [{'x': obstacle['x'] + OBSTACLE_SPEED, 'y': obstacle['y'], 'height': obstacle['height'], 'id': obstacle['id'], 'passed': obstacle['passed']} for obstacle in self.obstacles]
-        self.obstacles = [obstacle for obstacle in self.obstacles if obstacle['x'] + OBSTACLE_WIDTH > 0]
+            self.add_obstacle()
+
+        # Move obstacles to the left
+        for obstacle in self.obstacles:
+            obstacle['x'] += OBSTACLE_SPEED
+
+        # Remove obstacles that have moved out of the frame
+        self.obstacles = [ob for ob in self.obstacles if ob['x'] + OBSTACLE_WIDTH > 0]
 
     def draw(self, screen):
-        """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
-        """
-       
         for obstacle in self.obstacles:
-            pygame.draw.rect(screen, RED, (obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['height']))
+            screen.blit(obstacle['img'], (obstacle['x'], obstacle['y']))
 
     def checkCollision(self, playerRect):
-        """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
-        """
         for obstacle in self.obstacles:
-            obstacleRect = pygame.Rect(obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['height'])
-            
-            if playerRect.colliderect(obstacleRect):
+            obstacle_rect = pygame.Rect(obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['img'].get_height())
+            if playerRect.colliderect(obstacle_rect):
                 return True
-        
         return False
 
     def updateScore(self, playerRect, score):
-        """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
-        """
         for obstacle in self.obstacles:
-        
-            if playerRect.right > obstacle['x'] + OBSTACLE_WIDTH and not obstacle['passed']:
+            if not obstacle['passed'] and playerRect.right > obstacle['x'] + OBSTACLE_WIDTH:
                 obstacle['passed'] = True
-                pairPassed = all(ob['passed'] for ob in self.obstacles if ob['id'] == obstacle['id'])
-        
-                if pairPassed:
+                if all(o['passed'] for o in self.obstacles if o['id'] == obstacle['id']):
                     score += 1
-        
-                    for ob in self.obstacles:
-        
-                        if ob['id'] == obstacle['id']:
-                            ob['passed'] = True
-        
         return score
 
 class Game:
