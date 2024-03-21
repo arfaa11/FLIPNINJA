@@ -24,7 +24,7 @@ SCREEN_WIDTH, SCREEN_HEIGHT = 1920, 1080                    # 1920 x 1080 pixels
 BLACK, WHITE, RED = (0, 0, 0), (255, 255, 255), (255, 0, 0) # Define basic colors for now
 SPRITE_SCALE = 0.06                                         # Set sprite size to 6% of entire screen
 MAX_VEL = 5                                                 # Define a max velocity placeholder
-OBSTACLE_WIDTH = int(SCREEN_WIDTH * 0.05)                   # Set obstacle width to 5% of screen width
+OBSTACLE_WIDTH = 111                                        # Set obstacle width to 5% of screen width
 OBSTACLE_GAP = SCREEN_HEIGHT * 0.2                          # Set obstacle gap to 20% of screen height
 OBSTACLE_SPEED = -4                                         # Move obstacles from right to left at 4px/frame
 ANIMATION_TIME = 10                                         # Set the animation time for the player to a total of 10 ms
@@ -166,25 +166,28 @@ class ObstacleManager:
     def __init__(self):
         self.obstacles = []
         self.obstacleID = 0
-        # Load the obstacle image and set up the initial image scaling and obstacle gap
+        # Load the obstacle image
         self.original_img = pygame.image.load('Assets/Background/treeObstacle.png').convert_alpha()
-        self.obstacle_img = self.original_img
+        # Note: No need to scale the obstacle image here, since we're keeping their sizes constant
         self.obstacle_gap = OBSTACLE_GAP
 
     def add_obstacle(self):
-        # Randomly create a gap within a range that allows the ninja to pass through
-        gap_y = random.randint(int(SCREEN_HEIGHT * 0.2), int(SCREEN_HEIGHT * 0.8 - self.obstacle_gap))
-        bottom_obstacle_y = gap_y + self.obstacle_gap
+        # Decide the gap's vertical starting position randomly within a range, allowing for some of the obstacle to be potentially out of view
+        gap_top = random.randint(int(SCREEN_HEIGHT * 0.2), int(SCREEN_HEIGHT * 0.8 - self.obstacle_gap))
+        gap_bottom = gap_top + self.obstacle_gap
 
-        # Top obstacle - scaled to fixed width, with variable height
-        top_obstacle_img = pygame.transform.scale(self.obstacle_img, (OBSTACLE_WIDTH, gap_y))
-        top_obstacle_img = pygame.transform.flip(top_obstacle_img, False, True)  # Flip vertically
+        # Top obstacle image, flipped vertically
+        top_obstacle_img = pygame.transform.flip(self.original_img, False, True)
+        # Position the top obstacle's bottom at the gap's top
+        top_obstacle_y = gap_top - top_obstacle_img.get_height()
 
-        # Bottom obstacle - scaled to fixed width and height from bottom of gap to bottom of screen
-        bottom_obstacle_height = SCREEN_HEIGHT - bottom_obstacle_y
-        bottom_obstacle_img = pygame.transform.scale(self.obstacle_img, (OBSTACLE_WIDTH, bottom_obstacle_height))
+        # Bottom obstacle image
+        bottom_obstacle_img = self.original_img
+        # Position the bottom obstacle's top at the gap's bottom
+        bottom_obstacle_y = gap_bottom
 
-        self.obstacles.append({'x': SCREEN_WIDTH, 'y': 0, 'img': top_obstacle_img, 'id': self.obstacleID, 'passed': False})
+        # Append both top and bottom obstacles to the list with their positions
+        self.obstacles.append({'x': SCREEN_WIDTH, 'y': top_obstacle_y, 'img': top_obstacle_img, 'id': self.obstacleID, 'passed': False})
         self.obstacles.append({'x': SCREEN_WIDTH, 'y': bottom_obstacle_y, 'img': bottom_obstacle_img, 'id': self.obstacleID, 'passed': False})
         self.obstacleID += 1
 
@@ -228,47 +231,59 @@ class Game:
         """
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
+
         self.running = True
         self.inStartMenu = True
+        self.inSettings = False  # Flag to toggle settings UI
+        self.inGame = False
+        self.showGameOverScreen = False
+
         self.player = Player()
         self.obstacleMngr = ObstacleManager()
         self.bgMngr = BackgroundManager()
         self.score = 0
         self.font = pygame.font.SysFont('firacodenerdfontpropomed', 28)
+
         self.loadButtons()
         self.startButtonAnimPhase = 0
         self.settingsButtonAnimPhase = 0
         self.retryButtonAnimPhase = 0
-        self.showGameOverScreen = False
+
         self.numberImgs = self.loadNumberImages()
         self.scoreRecordsPath = 'Extras/scoreRecords.json'
         self.bestScore = self.getBestScore()
+
         self.playMenuMusic()  # Play menu music when the game object is initialized
+
         self.hoverSound = pygame.mixer.Sound('Assets/Music/hover.wav')  # Load hover sound
         self.selectSound = pygame.mixer.Sound('Assets/Music/select.wav')  # Load select sound
         self.deathSound = pygame.mixer.Sound('Assets/Music/death.wav')  # Load the death sound
         self.pointSound = pygame.mixer.Sound('Assets/Music/point.wav')
+
+        self.isMuted = False  # Mute state
+
         self.hoverSoundPlayed = False  # Flag to track if the hover sound has been played
         self.selectSoundPlayed = False # Flag to track if select sound has been played
-        self.gameMusicStarted = False  # Add this line
+        self.gameMusicStarted = False  # Flag to track if game music has been started
+        self.backHoverSoundPlayed = False # Flag to track if back hover sound has been played
         self.volumeSliderRects = []
-        self.inGame = False
+
+        self.homeButtonAnimPhase = 0
         self.homeButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/homeButton.png').convert_alpha(), (BUTTON_SIZE[0]/1.5, BUTTON_SIZE[1]/1.5))
         self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1] * 1.5))
-        self.homeButtonAnimPhase = 0
+
+        self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5)) 
+        self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
+
         self.volume = 0.5  # Default volume level
-        self.isMuted = False  # Mute state
-        self.inSettings = False  # Flag to toggle settings UI
         self.muteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/muteButton.png').convert_alpha(), (100, 100))
         self.unmuteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/unmuteButton.png').convert_alpha(), (100, 100))
         self.volumeButtonImg = self.unmuteButtonImg  # Start with unmute image
-        self.volumeButtonRect = self.unmuteButtonImg.get_rect(topright=(SCREEN_WIDTH - 100, 350))  # Adjust position as needed
+        self.volumeButtonRect = self.unmuteButtonImg.get_rect(topright=(SCREEN_WIDTH - 100, 350))
         self.initVolumeSlider()
-        self.volumeTextFont = pygame.font.SysFont('firacodenerdfontpropomed', 36)  # Choose an appropriate font size
+        self.volumeTextFont = pygame.font.SysFont('firacodenerdfontpropomed', 36) 
         self.volumeText = self.volumeTextFont.render('Game Volume', True, WHITE)
-        self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5))  # Adjust size as needed
-        self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
-        self.backHoverSoundPlayed = False
+
 
 
     def loadNumberImages(self):
