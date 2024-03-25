@@ -736,10 +736,14 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
         
                     if self.startButtonRect.collidepoint((mx, my)):
-                        pygame.mixer.music.stop()  # Stop the menu music
                         self.selectSound.play()
-                        self.inStartMenu = False
-                        self.inGame = True
+                        # Check if score records exist
+                        if self.getBestScore() == 0:
+                            self.runTutorial()  # Run the tutorial
+                        else:
+                            # self.run()  # Method to encapsulate starting the game
+                            self.inGame = True
+                            self.inStartMenu = False
         
                         if not self.gameMusicStarted:
                             self.playGameMusic()  # Start game music
@@ -770,6 +774,48 @@ class Game:
         
         for i, digit in enumerate(scoreStr):
             self.screen.blit(self.numberImgs[int(digit)], (startX + i * NUMBER_SIZE[0], 10))
+
+    def runTutorial(self):
+        tutorialDone = False
+        promptShown = False
+        self.player = Player()  # Reset player
+        self.obstacleMngr = ObstacleManager()  # Reset obstacles
+
+        while not tutorialDone and self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    tutorialDone = True
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        if not promptShown:
+                            promptShown = True  # Hide prompt after first gravity flip
+                            self.player.flipGravity()
+                        else:
+                            tutorialDone = True  # End tutorial on second space press
+                    if event.key == pygame.K_ESCAPE:
+                        tutorialDone = True  # Allow exiting the tutorial with ESC
+
+            self.screen.fill(BLACK)
+            self.bgMngr.draw(self.screen)
+            if not promptShown:
+                # Display the spacebar prompt
+                spaceBarImg = pygame.image.load('Assets/Buttons/spaceBar.png').convert_alpha()
+                spaceBarImg = pygame.transform.scale(spaceBarImg, (400, 300))
+                self.screen.blit(spaceBarImg, (SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 - 150))
+            else:
+                # Regular tutorial gameplay
+                self.player.update()
+                self.obstacleMngr.update()
+                self.player.draw(self.screen)
+                self.obstacleMngr.draw(self.screen)
+
+            pygame.display.flip()
+            self.clock.tick(60)
+
+        # self.run()
+        self.inGame = True
+        self.inStartMenu = False
 
     def run(self):
         """
