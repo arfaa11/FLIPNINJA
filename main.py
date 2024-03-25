@@ -284,6 +284,10 @@ class Game:
         self.volumeTextFont = pygame.font.SysFont('firacodenerdfontpropomed', 36) 
         self.volumeText = self.volumeTextFont.render('Game Volume', True, WHITE)
 
+        self.trophyImg = pygame.image.load('Assets/Buttons/trophy.png').convert_alpha()
+        self.trophyImg = pygame.transform.scale(self.trophyImg, (100, 100))
+
+        self.scoreRecorded = False 
 
 
     def loadNumberImages(self):
@@ -398,18 +402,27 @@ class Game:
         s.fill((0, 0, 0, 180))
         self.screen.blit(s, (SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 300))
 
-        # Draw "YOU DIED!" text with animation
-        pygame.font.init()
+        # Determine if a new high score has been set
+        if self.score >= self.bestScore:
+            self.bestScore = self.score
+            message = "NEW HIGH SCORE!"
+            color = (0, 255, 0)  # Gold color for the high score message
+            
+        else:
+            message = "You Died!"
+            color = RED
 
-        youDiedFont = pygame.font.SysFont("firacodenerdfontpropomed", 78) 
-        youDiedText = youDiedFont.render("You Died!", True, RED)
-        youDiedTextSize = youDiedText.get_size()
+        font = pygame.font.SysFont("firacodenerdfontpropomed", 78)
+        text = font.render(message, True, color)
+        text_rect = text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 400))
+        self.screen.blit(text, text_rect)
 
-        scaleFactor = 1.1 + 0.05 * math.sin(pygame.time.get_ticks() / 200)  # Adjust for desired animation speed and size
-        youDiedText = pygame.transform.scale(youDiedText, (int(youDiedTextSize[0] * scaleFactor), int(youDiedTextSize[1] * scaleFactor)))
-        youDiedRect = youDiedText.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 450))  # Adjust Y position as needed
-
-        self.screen.blit(youDiedText, youDiedRect.topleft)
+        # Display trophies on both sides of the message if a new high score has been set
+        if self.score >= self.bestScore:
+            trophy_left_rect = self.trophyImg.get_rect(midright=(text_rect.left - 20, text_rect.centery))
+            trophy_right_rect = self.trophyImg.get_rect(midleft=(text_rect.right + 20, text_rect.centery))
+            self.screen.blit(self.trophyImg, trophy_left_rect)
+            self.screen.blit(self.trophyImg, trophy_right_rect)
 
         homeButtonYOffset = self.retryButtonRect.bottom + 50  # 50 pixels below the retry button
 
@@ -495,6 +508,7 @@ class Game:
         self.showGameOverScreen = False
         self.inStartMenu = False
         self.inGame = True
+        self.scoreRecorded = False  # Reset the flag to allow score recording for the new session
 
         if self.inGame == True:
             self.playGameMusic()
@@ -802,9 +816,12 @@ class Game:
                 pygame.display.flip()
 
                 if self.obstacleMngr.checkCollision(self.player.spriteRect) or (self.player.spriteRect.top <= 0 or self.player.spriteRect.bottom >= SCREEN_HEIGHT):
+                    if not self.scoreRecorded:  # Check if the score hasn't been recorded yet
+                        self.updateScoreRecord(self.score)  # Update the score record
+                        self.scoreRecorded = True  # Set the flag to True to avoid duplicate recordings
                     self.deathSound.play()
                     pygame.mixer.music.stop()  # Stop the game music here
-        
+
                     self.showGameOverScreen = True
 
                 self.clock.tick(60)
