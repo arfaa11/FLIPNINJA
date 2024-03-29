@@ -66,9 +66,10 @@ class BackgroundManager:
 
     def update(self, elapsedTime):
         """
-        PURPOSE: 
-        PARAMETER(S): elapsedTime: 
-        RETURN:
+        PURPOSE: Update the background positions for parallax effect based on elapsed time.
+        PARAMETER(S): elapsedTime (float): The time elapsed since the last frame update, used to calculate movement.
+        RETURN: None. Modifies the background positions in place.
+
         """
         
         for key in self.bgXPos.keys():
@@ -76,9 +77,10 @@ class BackgroundManager:
 
     def draw(self, screen):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Draw the backgrounds to the screen, layering them to create a parallax effect.
+        PARAMETER(S): screen (pygame.Surface): The main game screen where backgrounds are drawn.
+        RETURN: None. Directly draws the backgrounds onto the provided screen surface.
+
         """
 
         screen.blit(self.bgImgs['sky'], (0, 0))
@@ -117,9 +119,10 @@ class Player:
 
     def update(self):
         """
-        PURPOSE: 
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Update the player's sprite and position based on gravity and current velocity.
+        PARAMETER(S): None. Uses the object's current state to determine updates.
+        RETURN: None. Modifies the player's position and sprite index in place.
+
         """
         
         now = pygame.time.get_ticks()
@@ -143,18 +146,20 @@ class Player:
 
     def draw(self, screen):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Draw the player's current sprite at its current position.
+        PARAMETER(S): screen (pygame.Surface): The main game screen where the player sprite is drawn.
+        RETURN: None. Directly draws the player's sprite onto the provided screen surface.
+
         """
         
         screen.blit(self.spriteImg, self.spriteRect)
 
     def flipGravity(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Invert the player's gravity, affecting its acceleration and flipping the sprite orientation.
+        PARAMETER(S): None. Toggles the gravity effect and sprite orientation based on the current state.
+        RETURN: None. Modifies the player's acceleration and sprite orientation in place.
+
         """
         
         self.gravFlipped = not self.gravFlipped
@@ -171,7 +176,12 @@ class ObstacleManager:
         # Note: No need to scale the obstacle image here, since we're keeping their sizes constant
         self.obstacle_gap = OBSTACLE_GAP
 
-    def add_obstacle(self):
+    def addObstacle(self):
+        """
+        PURPOSE: Add a new obstacle at a random position to the game, managing top and bottom obstacles.
+        PARAMETER(S): None. Generates obstacles and their positions based on predefined settings.
+        RETURN: None. Adds newly created obstacles to the obstacle list.
+        """
         # Decide the gap's vertical starting position randomly within a range, allowing for some of the obstacle to be potentially out of view
         gap_top = random.randint(int(SCREEN_HEIGHT * 0.2), int(SCREEN_HEIGHT * 0.8 - self.obstacle_gap))
         gap_bottom = gap_top + self.obstacle_gap
@@ -192,9 +202,14 @@ class ObstacleManager:
         self.obstacleID += 1
 
     def update(self):
+        """
+        PURPOSE: Update the position of all obstacles, moving them across the screen, and add new obstacles as necessary.
+        PARAMETER(S): None. Utilizes current obstacle positions and game settings to update state.
+        RETURN: None. Updates obstacles' positions and possibly adds new obstacles.
+        """
         # Add new obstacles if needed
         if not self.obstacles or self.obstacles[-1]['x'] < SCREEN_WIDTH * 0.75:
-            self.add_obstacle()
+            self.addObstacle()
 
         # Move obstacles to the left
         for obstacle in self.obstacles:
@@ -204,10 +219,20 @@ class ObstacleManager:
         self.obstacles = [ob for ob in self.obstacles if ob['x'] + OBSTACLE_WIDTH > 0]
 
     def draw(self, screen):
+        """
+        PURPOSE: Draw all obstacles on the screen at their current positions.
+        PARAMETER(S): screen (pygame.Surface): The main game screen where obstacles are drawn.
+        RETURN: None. Directly draws all obstacles onto the provided screen surface.
+        """
         for obstacle in self.obstacles:
             screen.blit(obstacle['img'], (obstacle['x'], obstacle['y']))
 
     def checkCollision(self, playerRect):
+        """
+        PURPOSE: Check if the player has collided with any of the obstacles.
+        PARAMETER(S): playerRect (pygame.Rect): The bounding rectangle of the player's sprite for collision detection.
+        RETURN: Boolean. Returns True if a collision is detected, False otherwise.
+        """
         for obstacle in self.obstacles:
             obstacle_rect = pygame.Rect(obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['img'].get_height())
             if playerRect.colliderect(obstacle_rect):
@@ -215,6 +240,12 @@ class ObstacleManager:
         return False
 
     def updateScore(self, playerRect, score):
+        """
+        PURPOSE: Update the game score based on obstacles passed by the player.
+        PARAMETER(S): playerRect (pygame.Rect): The bounding rectangle of the player's sprite for scoring checks.
+                      score (int): The current score of the game.
+        RETURN: int. Returns the updated score after checking passed obstacles.
+        """
         for obstacle in self.obstacles:
             if not obstacle['passed'] and playerRect.right > obstacle['x'] + OBSTACLE_WIDTH:
                 obstacle['passed'] = True
@@ -225,9 +256,9 @@ class ObstacleManager:
 class Game:
     def __init__(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Initialize the game, setting up the screen, game elements, and state flags.
+        PARAMETER(S): None. Sets up the game environment using predefined settings and assets.
+        RETURN: None. Constructs a Game object with initialized properties.
         """
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
@@ -292,9 +323,9 @@ class Game:
 
     def loadNumberImages(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Load and scale number images used for score display.
+        PARAMETER(S): None. Loads images from predefined file paths.
+        RETURN: List[pygame.Surface]. Returns a list of loaded and scaled number images.
         """
         
         numberPaths = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
@@ -303,9 +334,9 @@ class Game:
 
     def loadButtons(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Load and scale button images used in the game menus.
+        PARAMETER(S): None. Loads images from predefined file paths.
+        RETURN: None. Initializes button images and their bounding rectangles.
         """
         
         self.startButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/startButton.png').convert_alpha(), BUTTON_SIZE)
@@ -318,9 +349,9 @@ class Game:
 
     def updateScoreRecord(self, currentScore):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Update the file containing the score records with the current game session score.
+        PARAMETER(S): currentScore (int): The score achieved in the current game session.
+        RETURN: None. Updates or creates the score record file with the new score.
         """
         try:
         
@@ -345,9 +376,9 @@ class Game:
 
     def getBestScore(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Retrieve the highest score from the score records.
+        PARAMETER(S): None. Reads the score record file if it exists.
+        RETURN: int. Returns the highest score recorded; returns 0 if no records exist.
         """
 
         try:
@@ -368,9 +399,11 @@ class Game:
 
     def drawAnimatedScore(self, score, yPosition, animationPhase):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Draw the current score with animation effects.
+        PARAMETER(S): score (int): The current score to display.
+                      yPosition (int): The vertical position on the screen to draw the score.
+                      animationPhase (float): The phase of the animation for dynamic effect.
+        RETURN: None. Draws the animated score on the screen.
         """
         
         scoreStr = str(score)
@@ -388,11 +421,9 @@ class Game:
 
     def runGameOverScreen(self):
         """
-        PURPOSE: LOGIC TO SET UP THE GAME OVER SCREEN, INCLUDING DETAILS LIKE
-                 THE RETRY BUTTON, AND THE HOME BUTTON, ALONG WITH THE SCORE
-                 OBTAINED, AND THE BEST SCORE
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Display the game over screen, including options to retry or return to the main menu, and shows the final score and best score.
+        PARAMETER(S): None. Uses the game's current state and score information.
+        RETURN: None. Handles user input and transitions between game states based on selection.
         """
     
         self.screen.fill(BLACK)
@@ -495,10 +526,9 @@ class Game:
 
     def restartGame(self):
         """
-        PURPOSE: DEFINES LOGIC TO RESTART GAME, AND RESET THE SCORE BY 
-                 MANIPULATING BOOLEAN STATE FLAGS FROM INIT FUNC
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Reset the game to its initial state, ready for a new session.
+        PARAMETER(S): None. Resets game elements and score.
+        RETURN: None. Prepares the game for a new session without exiting to the menu.
         """
         
         self.player = Player()
@@ -516,9 +546,9 @@ class Game:
 
     def playMenuMusic(self):
         """
-        PURPOSE: FUNCTION TO PLAY THE MENU MUSIC IN A LOOP
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Load and play background music for the menu.
+        PARAMETER(S): None. Selects and plays specified music tracks.
+        RETURN: None. Starts playing the selected background music loop.
         """
         
         pygame.mixer.music.load('Assets/Music/menuMusic.wav')  # Load the menu music
@@ -526,9 +556,9 @@ class Game:
     
     def playGameMusic(self):
         """
-        PURPOSE: FUNCTION TO PLAY THE GAME PLAY MUSIC IN A LOOP
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Load and play background music for the game session.
+        PARAMETER(S): None. Selects and plays specified music tracks.
+        RETURN: None. Starts playing the selected background music loop.
         """
         
         pygame.mixer.music.load('Assets/Music/gameMusic.wav')  # Load the menu music
@@ -536,10 +566,9 @@ class Game:
     
     def toggleMute(self):
         """
-        PURPOSE: LOGIC TO TOGGLE BETWEEN MUTE AND UNMUTE AND UPDATE IMAGE IN 
-                 SETTINGS UI ACCORDINGLY
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Toggle the game's mute state, adjusting volume and updating the mute button image.
+        PARAMETER(S): None. Changes the volume to 0 or restores it based on the current state.
+        RETURN: None. Modifies the game's volume and updates the mute button's appearance.
         """
         
         if self.volume > 0:
@@ -554,9 +583,9 @@ class Game:
 
     def initVolumeSlider(self):
         """
-        PURPOSE:
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Initialize the graphical representation and functionality of the volume slider in the settings menu.
+        PARAMETER(S): None. Sets up the positions and sizes of volume slider components.
+        RETURN: None. Creates volume slider rectangles and assigns them to a list.
         """
         
         # Initialize the slider to the right of the mute button, with a small gap
@@ -576,9 +605,9 @@ class Game:
 
     def drawVolumeSlider(self):
         """
-        PURPOSE: 
-        PARAMETER(S):
-        RETURN:
+        PURPOSE: Draw the volume slider and its current level on the settings screen.
+        PARAMETER(S): None. Utilizes the current volume level and slider setup.
+        RETURN: None. Draws the slider and its current setting visually on the screen.
         """
         
         for i, rect in enumerate(self.volumeSliderRects):
@@ -591,11 +620,9 @@ class Game:
 
     def drawSettingsUI(self):
         """
-        PURPOSE: CONSTRUCTS THE SETTINGS UI FOR THE USER TO BE ALLOWED TO 
-                 ADJUST VOLUME IN, AND OTHER FEATURES SUCH AS NAVIGATION AND
-                 MUTE BUTTONS
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Draw and manage the settings UI, allowing the user to adjust volume and access other settings.
+        PARAMETER(S): None. Handles user input and visual representation of settings.
+        RETURN: None. Updates the game's settings based on user interactions.
         """
         
         while self.inSettings:
@@ -664,9 +691,9 @@ class Game:
 
     def setVolume(self, volume):
         """
-        PURPOSE: LOGIC TO CONTROL VOLUME DEPENDING ON SETTINGS UI INPUT FROM USER
-        PARAMETER(S): volume: THE CURRENT VOLUME LEVEL DEFINED IN INIT FUNC
-        RETURN: NONE
+        PURPOSE: Adjust the game's volume based on user input from the settings UI.
+        PARAMETER(S): volume (float): The new volume level, ranging from 0.0 to 1.0.
+        RETURN: None. Updates the game's volume and the mute button's appearance.
         """
         
         self.volume = volume
@@ -680,10 +707,9 @@ class Game:
 
     def runStartMenu(self):
         """
-        PURPOSE: LOGIC TO RUN THE START MENU OF THE GAME AND DEFINE ALL RELATED
-                 FUNCTIONALITY AND FEATURES
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Display the start menu and handle user interactions, including starting the game or accessing settings.
+        PARAMETER(S): None. Manages transitions based on user input.
+        RETURN: None. Directs the game to the appropriate state based on menu selections.
         """
         
         self.screen.fill(BLACK)
@@ -761,11 +787,9 @@ class Game:
 
     def drawScore(self):
         """
-        PURPOSE: GOES THROUGH SCORE VARIABLE TO DETERMINE CURRENT SCORE, AND 
-                 UPDATES THE SCORE DRAWING ON SCREEN TO REPRESENT CHANGES AND 
-                 ACCURATELY DRAW SCORES
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Draw the current game score on the screen.
+        PARAMETER(S): None. Uses the game's current score to display.
+        RETURN: None. Renders the score on the game screen using number images.
         """
         
         scoreStr = str(self.score)
@@ -776,6 +800,11 @@ class Game:
             self.screen.blit(self.numberImgs[int(digit)], (startX + i * NUMBER_SIZE[0], 10))
 
     def runTutorial(self):
+        """
+        PURPOSE: Run a tutorial session for new players, introducing game mechanics like gravity flipping.
+        PARAMETER(S): None. Guides the player through initial gameplay concepts.
+        RETURN: None. Initiates the game session after the tutorial is completed or skipped.
+        """
         tutorialDone = False
         promptShown = False
         self.player = Player()  # Reset player
@@ -819,9 +848,9 @@ class Game:
 
     def run(self):
         """
-        PURPOSE: MAIN GAME LOOP TO PERFORM ALL IN GAME FUNCTIONS THROUGH METHOD CALLS
-        PARAMETER(S): NONE
-        RETURN: NONE
+        PURPOSE: Main game loop that handles updates, drawing, and state transitions.
+        PARAMETER(S): None. Coordinates game updates, drawing, and input handling.
+        RETURN: None. Maintains the game loop until the game is exited.
         """
         while self.running:
         
