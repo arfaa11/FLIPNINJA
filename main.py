@@ -72,7 +72,9 @@ class BackgroundManager:
 
         """
         
+        # Update background positions for a parallax effect
         for key in self.bgXPos.keys():
+            # Calculate new position based on speed and elapsed time, wrap around at screen edge
             self.bgXPos[key] = [(x + self.bgSpeeds[key] * elapsedTime) % SCREEN_WIDTH for x in self.bgXPos[key]]
 
     def draw(self, screen):
@@ -83,12 +85,15 @@ class BackgroundManager:
 
         """
 
+        # Draw the static sky background first
         screen.blit(self.bgImgs['sky'], (0, 0))
 
+        # Loop through and draw each moving background layer
         for key in ['cloudsBack', 'cloudsFront', 'ground']:
             for xPos in self.bgXPos[key]:
+                # Draw current background image at its current position
                 screen.blit(self.bgImgs[key], (xPos, 0))
-
+                # If part of the image moves off-screen, draw it again on the opposite end
                 if xPos < SCREEN_WIDTH:
                     screen.blit(self.bgImgs[key], (xPos - SCREEN_WIDTH, 0))
 
@@ -103,18 +108,35 @@ class Player:
         RETURN: NONE
         """
         
+        # Load running animation images
         self.spriteImgs = [pygame.image.load(f'Assets/Sprites/ninjaRun{i}.png') for i in range(1, 12)]
+        
+        # Create flipped versions for when gravity is inverted
         self.spriteImgsFlipped = [pygame.transform.flip(img, False, True) for img in self.spriteImgs]
+        
+        # Calculate scaled dimensions for the sprite
         scaledSpriteHeight = int(SCREEN_HEIGHT * SPRITE_SCALE)
         scaledSpriteWidth = int(self.spriteImgs[0].get_width() * scaledSpriteHeight / self.spriteImgs[0].get_height())
+        
+        # Apply scaling to both sprite sets
         self.spriteImgs = [pygame.transform.scale(img, (scaledSpriteWidth, scaledSpriteHeight)) for img in self.spriteImgs]
         self.spriteImgsFlipped = [pygame.transform.scale(img, (scaledSpriteWidth, scaledSpriteHeight)) for img in self.spriteImgsFlipped]
+        
+        # Initialize animation state
         self.currSprite = 0
         self.spriteImg = self.spriteImgs[self.currSprite]
+        
+        # Position the player sprite
         self.spriteRect = self.spriteImg.get_rect(topleft=(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT // 2 - scaledSpriteHeight // 2))
+        
+        # Initialize velocity and acceleration
         self.playerVel = [0, 0]
         self.playerAcc = [0, 0.5]
+        
+        # Flag for gravity direction
         self.gravFlipped = False
+        
+        # Timing for animation updates
         self.lastUpdate = pygame.time.get_ticks()
 
     def update(self):
@@ -125,17 +147,26 @@ class Player:
 
         """
         
+        # Track time for sprite animation frame updates
         now = pygame.time.get_ticks()
         
         if now - self.lastUpdate > ANIMATION_TIME:
             self.lastUpdate = now
+        
+            # Cycle through sprite images for animation
             self.currSprite = (self.currSprite + 1) % len(self.spriteImgs)
             self.spriteImg = self.spriteImgs[self.currSprite]
         
+        # Apply acceleration to velocity
         self.playerVel[1] += self.playerAcc[1]
+        
+        # Limit velocity to maximum value
         self.playerVel[1] = max(-MAX_VEL, min(MAX_VEL, self.playerVel[1]))
+        
+        # Update position based on velocity
         self.spriteRect.y += self.playerVel[1]
         
+        # Prevent player from moving beyond the screen bounds
         if self.spriteRect.top <= 0:
             self.spriteRect.top = 0
             self.playerVel[1] = 0
@@ -152,6 +183,7 @@ class Player:
 
         """
         
+        # Draw sprite at current position
         screen.blit(self.spriteImg, self.spriteRect)
 
     def flipGravity(self):
@@ -162,19 +194,24 @@ class Player:
 
         """
         
+        # Invert gravity direction and update sprite set for animation
         self.gravFlipped = not self.gravFlipped
         self.playerAcc[1] = -self.playerAcc[1]
+
+        # Swap sprite sets to reflect gravity flip
         self.spriteImgs, self.spriteImgsFlipped = self.spriteImgsFlipped, self.spriteImgs
         self.spriteImg = self.spriteImgs[self.currSprite]
 
 class ObstacleManager:
+    
     def __init__(self):
-        self.obstacles = []
-        self.obstacleID = 0
-        # Load the obstacle image
+    
+        self.obstacles = []  # List to hold obstacles
+        self.obstacleID = 0  # Unique ID for each obstacle pair
+    
+        # Load the obstacle image (tree) from assets
         self.original_img = pygame.image.load('Assets/Background/treeObstacle.png').convert_alpha()
-        # Note: No need to scale the obstacle image here, since we're keeping their sizes constant
-        self.obstacle_gap = OBSTACLE_GAP
+        self.obstacle_gap = OBSTACLE_GAP  # Vertical space between top and bottom obstacles
 
     def addObstacle(self):
         """
@@ -182,24 +219,23 @@ class ObstacleManager:
         PARAMETER(S): None. Generates obstacles and their positions based on predefined settings.
         RETURN: None. Adds newly created obstacles to the obstacle list.
         """
-        # Decide the gap's vertical starting position randomly within a range, allowing for some of the obstacle to be potentially out of view
+        
+        # Randomly set the gap's start position
         gap_top = random.randint(int(SCREEN_HEIGHT * 0.2), int(SCREEN_HEIGHT * 0.8 - self.obstacle_gap))
         gap_bottom = gap_top + self.obstacle_gap
-
-        # Top obstacle image, flipped vertically
+        
+        # Flip the top obstacle image for visual consistency
         top_obstacle_img = pygame.transform.flip(self.original_img, False, True)
-        # Position the top obstacle's bottom at the gap's top
         top_obstacle_y = gap_top - top_obstacle_img.get_height()
-
-        # Bottom obstacle image
+        
+        # Bottom obstacle uses the original image
         bottom_obstacle_img = self.original_img
-        # Position the bottom obstacle's top at the gap's bottom
         bottom_obstacle_y = gap_bottom
-
-        # Append both top and bottom obstacles to the list with their positions
+        
+        # Add both obstacles to the list with a unique ID and a passed flag
         self.obstacles.append({'x': SCREEN_WIDTH, 'y': top_obstacle_y, 'img': top_obstacle_img, 'id': self.obstacleID, 'passed': False})
         self.obstacles.append({'x': SCREEN_WIDTH, 'y': bottom_obstacle_y, 'img': bottom_obstacle_img, 'id': self.obstacleID, 'passed': False})
-        self.obstacleID += 1
+        self.obstacleID += 1  # Increment ID for the next pair
 
     def update(self):
         """
@@ -224,6 +260,8 @@ class ObstacleManager:
         PARAMETER(S): screen (pygame.Surface): The main game screen where obstacles are drawn.
         RETURN: None. Directly draws all obstacles onto the provided screen surface.
         """
+        
+        # Draw all obstacles on the screen
         for obstacle in self.obstacles:
             screen.blit(obstacle['img'], (obstacle['x'], obstacle['y']))
 
@@ -233,11 +271,15 @@ class ObstacleManager:
         PARAMETER(S): playerRect (pygame.Rect): The bounding rectangle of the player's sprite for collision detection.
         RETURN: Boolean. Returns True if a collision is detected, False otherwise.
         """
+    
+        # Check for collisions between the player and any obstacle
         for obstacle in self.obstacles:
             obstacle_rect = pygame.Rect(obstacle['x'], obstacle['y'], OBSTACLE_WIDTH, obstacle['img'].get_height())
+         
             if playerRect.colliderect(obstacle_rect):
-                return True
-        return False
+                return True  # Collision detected
+        
+        return False  # No collision
 
     def updateScore(self, playerRect, score):
         """
@@ -246,66 +288,78 @@ class ObstacleManager:
                       score (int): The current score of the game.
         RETURN: int. Returns the updated score after checking passed obstacles.
         """
+        
+        # Increment score if the player passes an obstacle without colliding
         for obstacle in self.obstacles:
             if not obstacle['passed'] and playerRect.right > obstacle['x'] + OBSTACLE_WIDTH:
                 obstacle['passed'] = True
+        
+                # Ensure both top and bottom parts of the obstacle were passed
                 if all(o['passed'] for o in self.obstacles if o['id'] == obstacle['id']):
-                    score += 1
-        return score
+                    score += 1  # Increase score
+        
+        return score  # Return the updated score
+
 
 class Game:
+    
     def __init__(self):
         """
         PURPOSE: Initialize the game, setting up the screen, game elements, and state flags.
         PARAMETER(S): None. Sets up the game environment using predefined settings and assets.
         RETURN: None. Constructs a Game object with initialized properties.
         """
+        
+        # Set display with given size
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        
+        # Start clock
         self.clock = pygame.time.Clock()
 
-        self.running = True
-        self.inStartMenu = True
+        # Initialize game state flags
+        self.running = True # Flag to toggle running state
+        self.inStartMenu = True # Flag to set start menu UI
         self.inSettings = False  # Flag to toggle settings UI
-        self.inGame = False
-        self.showGameOverScreen = False
+        self.inGame = False # Flag to toggle gameplay
+        self.showGameOverScreen = False # Flag to toggle game over screen
 
-        self.player = Player()
+        # Call other classes' instances
+        self.player = Player() 
         self.obstacleMngr = ObstacleManager()
         self.bgMngr = BackgroundManager()
+        
+        # Initialize score as 0
         self.score = 0
+        
+        # Set main UI font
         self.font = pygame.font.SysFont('firacodenerdfontpropomed', 28)
 
+        # Load buttons to be displayed
         self.loadButtons()
+
+        # Animation phases for buttons
         self.startButtonAnimPhase = 0
+        self.homeButtonAnimPhase = 0
         self.settingsButtonAnimPhase = 0
         self.retryButtonAnimPhase = 0
 
+        # Set up logic for score tracking and displaying
         self.numberImgs = self.loadNumberImages()
-        self.scoreRecordsPath = 'Extras/scoreRecords.json'
+        self.scoreRecordsPath = 'Extras/scoreRecords.json' # Store scores in json file
         self.bestScore = self.getBestScore()
 
+        # Initialize and set up all in game music and sound effects
         self.playMenuMusic()  # Play menu music when the game object is initialized
-
         self.hoverSound = pygame.mixer.Sound('Assets/Music/hover.wav')  # Load hover sound
         self.selectSound = pygame.mixer.Sound('Assets/Music/select.wav')  # Load select sound
         self.deathSound = pygame.mixer.Sound('Assets/Music/death.wav')  # Load the death sound
         self.pointSound = pygame.mixer.Sound('Assets/Music/point.wav')
-
         self.isMuted = False  # Mute state
-
         self.hoverSoundPlayed = False  # Flag to track if the hover sound has been played
         self.selectSoundPlayed = False # Flag to track if select sound has been played
         self.gameMusicStarted = False  # Flag to track if game music has been started
         self.backHoverSoundPlayed = False # Flag to track if back hover sound has been played
         self.volumeSliderRects = []
-
-        self.homeButtonAnimPhase = 0
-        self.homeButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/homeButton.png').convert_alpha(), (BUTTON_SIZE[0]/1.5, BUTTON_SIZE[1]/1.5))
-        self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1] * 1.5))
-
-        self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5)) 
-        self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
-
         self.volume = 0.5  # Default volume level
         self.muteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/muteButton.png').convert_alpha(), (100, 100))
         self.unmuteButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/unmuteButton.png').convert_alpha(), (100, 100))
@@ -315,9 +369,17 @@ class Game:
         self.volumeTextFont = pygame.font.SysFont('firacodenerdfontpropomed', 36) 
         self.volumeText = self.volumeTextFont.render('Game Volume', True, WHITE)
 
+        # Set up logic to display home and back buttons
+        self.homeButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/homeButton.png').convert_alpha(), (BUTTON_SIZE[0]/1.5, BUTTON_SIZE[1]/1.5))
+        self.homeButtonRect = self.homeButtonImg.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + BUTTON_SIZE[1] * 1.5))
+        self.backButtonImg = pygame.transform.scale(pygame.image.load('Assets/Buttons/backButton.png').convert_alpha(), (BUTTON_SIZE[0]/2.5, BUTTON_SIZE[1]/2.5)) 
+        self.backButtonRect = self.backButtonImg.get_rect(topleft=(10, 10))  # Position it at the top left
+
+        # Logic to display trophies on game over screen when high score beat
         self.trophyImg = pygame.image.load('Assets/Buttons/trophy.png').convert_alpha()
         self.trophyImg = pygame.transform.scale(self.trophyImg, (100, 100))
 
+        # Flag to track score recording to prevent duplicate score entries
         self.scoreRecorded = False 
 
 
