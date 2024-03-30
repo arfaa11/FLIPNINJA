@@ -6,14 +6,6 @@ DESCRIPTION: A GAME REVOLVING A NINJA THAT CAN FLIP HIS GRAVITY AND HAS OT NAVIG
              LAST TIME.
 """
 
-# Import statements
-import pygame
-import sys
-import random
-import math
-import json
-import os
-
 from Game import *
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------
