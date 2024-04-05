@@ -526,18 +526,24 @@ class Game:
             self.volumeButtonImg = self.muteButtonImg
 
     def animateFlipText(self):
+        """
+        PURPOSE: Add the game title to the main menu UI and animates the "FLIP" text to 
+                 rotate continuously.
+        PARAMETER(S): None.
+        RETURN: None.
+        """
         currTime = pygame.time.get_ticks()
         if not self.pauseAfterFlip:
             # Rotate the text if not in pause
-            if currTime - self.flipTextLastUpdate > 2:  # Update every 50ms for smoother animation
-                self.flipTextRotation += 2  # Adjust rotation speed here
+            if currTime - self.flipTextLastUpdate > 2:  # Update every 2ms for smoother animation
+                self.flipTextRotation += 2 # Rotation speed = 2 degrees per iteration
                 if self.flipTextRotation >= 360:
                     self.flipTextRotation = 0
                     self.pauseAfterFlip = True
                     self.flipPauseStartTime = currTime
                 self.flipTextLastUpdate = currTime
         else:
-            # Handle pause after complete rotation
+            # Pause after complete rotation
             if currTime - self.flipPauseStartTime >= self.pauseDuration:
                 self.pauseAfterFlip = False  # End pause
 
