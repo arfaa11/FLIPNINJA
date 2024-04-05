@@ -532,16 +532,21 @@ class Game:
         PARAMETER(S): None.
         RETURN: None.
         """
+        
         currTime = pygame.time.get_ticks()
+        
         if not self.pauseAfterFlip:
             # Rotate the text if not in pause
             if currTime - self.flipTextLastUpdate > 2:  # Update every 2ms for smoother animation
                 self.flipTextRotation += 2 # Rotation speed = 2 degrees per iteration
+        
                 if self.flipTextRotation >= 360:
                     self.flipTextRotation = 0
                     self.pauseAfterFlip = True
                     self.flipPauseStartTime = currTime
+        
                 self.flipTextLastUpdate = currTime
+        
         else:
             # Pause after complete rotation
             if currTime - self.flipPauseStartTime >= self.pauseDuration:
@@ -549,10 +554,13 @@ class Game:
 
         # Create "FLIP" text
         font = pygame.font.SysFont('Calibri', 90, True, True)
+        
         flipText = font.render("FLIP", True, WHITE)
         flipTextRect = flipText.get_rect(center=(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 4))
+        
         rotatedFlipText = pygame.transform.rotate(flipText, self.flipTextRotation)
         rotatedFlipTextRect = rotatedFlipText.get_rect(center=flipTextRect.center)
+        
         self.screen.blit(rotatedFlipText, rotatedFlipTextRect)
 
     def runStartMenu(self):
