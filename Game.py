@@ -116,6 +116,13 @@ class Game:
         # Flag to track score recording to prevent duplicate score entries
         self.scoreRecorded = False 
 
+        # Initialize "FLIP" text animation variables
+        self.flipTextRotation = 0
+        self.flipTextLastUpdate = pygame.time.get_ticks()
+        self.pauseAfterFlip = False
+        self.pauseDuration = 2000  # Pause for 2 seconds
+        self.flipPauseStartTime = 0
+        self.flipAnimate = True  # Control the animation activation
 
     def loadNumberImages(self):
         """
@@ -249,15 +256,15 @@ class Game:
 
         font = pygame.font.SysFont("firacodenerdfontpropomed", 78)
         text = font.render(message, True, color)
-        text_rect = text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 400))
-        self.screen.blit(text, text_rect)
+        textRect = text.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 400))
+        self.screen.blit(text, textRect)
 
         # Display trophies on both sides of the message if a new high score has been set
         if self.score >= self.bestScore:
-            trophy_left_rect = self.trophyImg.get_rect(midright=(text_rect.left - 20, text_rect.centery))
-            trophy_right_rect = self.trophyImg.get_rect(midleft=(text_rect.right + 20, text_rect.centery))
-            self.screen.blit(self.trophyImg, trophy_left_rect)
-            self.screen.blit(self.trophyImg, trophy_right_rect)
+            trophyLeftRect = self.trophyImg.get_rect(midright=(textRect.left - 20, textRect.centery))
+            trophyRightRect = self.trophyImg.get_rect(midleft=(textRect.right + 20, textRect.centery))
+            self.screen.blit(self.trophyImg, trophyLeftRect)
+            self.screen.blit(self.trophyImg, trophyRightRect)
 
         homeButtonYOffset = self.retryButtonRect.bottom + 50  # 50 pixels below the retry button
 
@@ -518,6 +525,30 @@ class Game:
         else:
             self.volumeButtonImg = self.muteButtonImg
 
+    def animateFlipText(self):
+        currTime = pygame.time.get_ticks()
+        if not self.pauseAfterFlip:
+            # Rotate the text if not in pause
+            if currTime - self.flipTextLastUpdate > 2:  # Update every 50ms for smoother animation
+                self.flipTextRotation += 2  # Adjust rotation speed here
+                if self.flipTextRotation >= 360:
+                    self.flipTextRotation = 0
+                    self.pauseAfterFlip = True
+                    self.flipPauseStartTime = currTime
+                self.flipTextLastUpdate = currTime
+        else:
+            # Handle pause after complete rotation
+            if currTime - self.flipPauseStartTime >= self.pauseDuration:
+                self.pauseAfterFlip = False  # End pause
+
+        # Create "FLIP" text
+        font = pygame.font.SysFont('Calibri', 90, True, True)
+        flipText = font.render("FLIP", True, WHITE)
+        flipTextRect = flipText.get_rect(center=(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 4))
+        rotatedFlipText = pygame.transform.rotate(flipText, self.flipTextRotation)
+        rotatedFlipTextRect = rotatedFlipText.get_rect(center=flipTextRect.center)
+        self.screen.blit(rotatedFlipText, rotatedFlipTextRect)
+
     def runStartMenu(self):
         """
         PURPOSE: Display the start menu and handle user interactions, including starting the game or accessing settings.
@@ -565,6 +596,16 @@ class Game:
                 animRectB = animButtonB.get_rect(center=self.settingsButtonRect.center)
                 self.screen.blit(animButtonB, animRectB)
                 self.settingsButtonAnimPhase += 0.015
+
+            # Render and animate "FLIP" text
+            if self.flipAnimate:
+                self.animateFlipText()
+
+            # Render "NINJA" text statically
+            font = pygame.font.SysFont('Calibri', 90, True, True)
+            ninja_text = font.render("NINJA", True, WHITE)
+            ninja_text_rect = ninja_text.get_rect(center=(SCREEN_WIDTH / 2 + 100, SCREEN_HEIGHT / 4))
+            self.screen.blit(ninja_text, ninja_text_rect)
 
             # Handle menu interactions.
             for event in pygame.event.get():
