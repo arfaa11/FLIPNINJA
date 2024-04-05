@@ -5,6 +5,8 @@ DESCRIPTION: A GAME REVOLVING A NINJA THAT CAN FLIP HIS GRAVITY AND HAS OT NAVIG
              IN A JOURNEY TOWARDS SELF-IMPROVEMENT BECAUSE HE IS ALWAYS TRYING TO DO BETTER THAN HE DID
              LAST TIME.
 """
+# Import asyncio
+import asyncio
 
 # Star import the game file
 from Game import *
@@ -13,4 +15,4 @@ from Game import *
 # Create an instance of the game
 if __name__ == '__main__':
     game = Game()
-    game.run()
+    asyncio.run(game.run())

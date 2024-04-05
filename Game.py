@@ -12,6 +12,7 @@ import sys
 import math
 import json
 import os
+import asyncio
 
 # Star imports from other game files
 from BackgroundManager import *
@@ -727,7 +728,7 @@ class Game:
         self.inGame = True  # Start the main game after the tutorial.
         self.inStartMenu = False
 
-    def run(self):
+    async def run(self):
         """
         PURPOSE: Main game loop that handles updates, drawing, and state transitions.
         PARAMETER(S): None. Coordinates game updates, drawing, and input handling.
@@ -787,6 +788,7 @@ class Game:
                     self.showGameOverScreen = True  # Show game over screen.
 
                 self.clock.tick(60)  # Limit the frame rate to 60 frames per second.
+                await asyncio.sleep(0)
 
         pygame.quit()  # Quit pygame when the game loop ends.
         sys.exit()  # Exit the program.
